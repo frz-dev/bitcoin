@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2018 The Bitcoin Core developers
+// Copyright (c) 2009-2019 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -116,7 +116,8 @@ UniValue importprivkey(const JSONRPCRequest& request)
                 "\nAdds a private key (as returned by dumpprivkey) to your wallet. Requires a new wallet backup.\n"
                 "Hint: use importmulti to import more than one private key.\n"
             "\nNote: This call can take over an hour to complete if rescan is true, during that time, other rpc calls\n"
-            "may report that the imported key exists but related transactions are still missing, leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.\n",
+            "may report that the imported key exists but related transactions are still missing, leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.\n"
+            "Note: Use \"getwalletinfo\" to query the scanning progress.\n",
                 {
                     {"privkey", RPCArg::Type::STR, RPCArg::Optional::NO, "The private key (see dumpprivkey)"},
                     {"label", RPCArg::Type::STR, /* default */ "current label if address exists, otherwise \"\"", "An optional label"},
@@ -158,8 +159,11 @@ UniValue importprivkey(const JSONRPCRequest& request)
         if (!request.params[2].isNull())
             fRescan = request.params[2].get_bool();
 
-        if (fRescan && pwallet->chain().getPruneMode()) {
-            throw JSONRPCError(RPC_WALLET_ERROR, "Rescan is disabled in pruned mode");
+        if (fRescan && pwallet->chain().havePruned()) {
+            // Exit early and print an error.
+            // If a block is pruned after this check, we will import the key(s),
+            // but fail the rescan with a generic error.
+            throw JSONRPCError(RPC_WALLET_ERROR, "Rescan is disabled when blocks are pruned");
         }
 
         if (fRescan && !reserver.reserve()) {
@@ -217,7 +221,8 @@ UniValue abortrescan(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() > 0)
         throw std::runtime_error(
             RPCHelpMan{"abortrescan",
-                "\nStops current wallet rescan triggered by an RPC call, e.g. by an importprivkey call.\n",
+                "\nStops current wallet rescan triggered by an RPC call, e.g. by an importprivkey call.\n"
+                "Note: Use \"getwalletinfo\" to query the scanning progress.\n",
                 {},
                 RPCResults{},
                 RPCExamples{
@@ -286,8 +291,10 @@ UniValue importaddress(const JSONRPCRequest& request)
             "\nNote: This call can take over an hour to complete if rescan is true, during that time, other rpc calls\n"
             "may report that the imported address exists but related transactions are still missing, leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.\n"
             "If you have the full public key, you should call importpubkey instead of this.\n"
+            "Hint: use importmulti to import more than one address.\n"
             "\nNote: If you import a non-standard raw script in hex form, outputs sending to it will be treated\n"
-            "as change, and not show up in many RPCs.\n",
+            "as change, and not show up in many RPCs.\n"
+            "Note: Use \"getwalletinfo\" to query the scanning progress.\n",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The Bitcoin address (or hex-encoded script)"},
                     {"label", RPCArg::Type::STR, /* default */ "\"\"", "An optional label"},
@@ -315,8 +322,11 @@ UniValue importaddress(const JSONRPCRequest& request)
     if (!request.params[2].isNull())
         fRescan = request.params[2].get_bool();
 
-    if (fRescan && pwallet->chain().getPruneMode()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Rescan is disabled in pruned mode");
+    if (fRescan && pwallet->chain().havePruned()) {
+        // Exit early and print an error.
+        // If a block is pruned after this check, we will import the key(s),
+        // but fail the rescan with a generic error.
+        throw JSONRPCError(RPC_WALLET_ERROR, "Rescan is disabled when blocks are pruned");
     }
 
     WalletRescanReserver reserver(pwallet);
@@ -480,8 +490,10 @@ UniValue importpubkey(const JSONRPCRequest& request)
         throw std::runtime_error(
             RPCHelpMan{"importpubkey",
                 "\nAdds a public key (in hex) that can be watched as if it were in your wallet but cannot be used to spend. Requires a new wallet backup.\n"
+                "Hint: use importmulti to import more than one public key.\n"
             "\nNote: This call can take over an hour to complete if rescan is true, during that time, other rpc calls\n"
-            "may report that the imported pubkey exists but related transactions are still missing, leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.\n",
+            "may report that the imported pubkey exists but related transactions are still missing, leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.\n"
+            "Note: Use \"getwalletinfo\" to query the scanning progress.\n",
                 {
                     {"pubkey", RPCArg::Type::STR, RPCArg::Optional::NO, "The hex-encoded public key"},
                     {"label", RPCArg::Type::STR, /* default */ "\"\"", "An optional label"},
@@ -508,8 +520,11 @@ UniValue importpubkey(const JSONRPCRequest& request)
     if (!request.params[2].isNull())
         fRescan = request.params[2].get_bool();
 
-    if (fRescan && pwallet->chain().getPruneMode()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Rescan is disabled in pruned mode");
+    if (fRescan && pwallet->chain().havePruned()) {
+        // Exit early and print an error.
+        // If a block is pruned after this check, we will import the key(s),
+        // but fail the rescan with a generic error.
+        throw JSONRPCError(RPC_WALLET_ERROR, "Rescan is disabled when blocks are pruned");
     }
 
     WalletRescanReserver reserver(pwallet);
@@ -559,7 +574,8 @@ UniValue importwallet(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
             RPCHelpMan{"importwallet",
-                "\nImports keys from a wallet dump file (see dumpwallet). Requires a new wallet backup to include imported keys.\n",
+                "\nImports keys from a wallet dump file (see dumpwallet). Requires a new wallet backup to include imported keys.\n"
+                "Note: Use \"getwalletinfo\" to query the scanning progress.\n",
                 {
                     {"filename", RPCArg::Type::STR, RPCArg::Optional::NO, "The wallet file"},
                 },
@@ -574,8 +590,11 @@ UniValue importwallet(const JSONRPCRequest& request)
                 },
             }.ToString());
 
-    if (pwallet->chain().getPruneMode()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Importing wallets is disabled in pruned mode");
+    if (pwallet->chain().havePruned()) {
+        // Exit early and print an error.
+        // If a block is pruned after this check, we will import the key(s),
+        // but fail the rescan with a generic error.
+        throw JSONRPCError(RPC_WALLET_ERROR, "Importing wallets is disabled when blocks are pruned");
     }
 
     WalletRescanReserver reserver(pwallet);
@@ -1254,55 +1273,17 @@ static UniValue ProcessImport(CWallet * const pwallet, const UniValue& data, con
 
         // All good, time to import
         pwallet->MarkDirty();
-        for (const auto& entry : import_data.import_scripts) {
-            if (!pwallet->HaveCScript(CScriptID(entry)) && !pwallet->AddCScript(entry)) {
-                throw JSONRPCError(RPC_WALLET_ERROR, "Error adding script to wallet");
-             }
-         }
-         for (const auto& entry : privkey_map) {
-             const CKey& key = entry.second;
-             CPubKey pubkey = key.GetPubKey();
-             const CKeyID& id = entry.first;
-             assert(key.VerifyPubKey(pubkey));
-             pwallet->mapKeyMetadata[id].nCreateTime = timestamp;
-             // If the private key is not present in the wallet, insert it.
-             if (!pwallet->HaveKey(id) && !pwallet->AddKeyPubKey(key, pubkey)) {
-                 throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
-             }
-             pwallet->UpdateTimeFirstKey(timestamp);
+        if (!pwallet->ImportScripts(import_data.import_scripts)) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Error adding script to wallet");
         }
-        for (const auto& entry : import_data.key_origins) {
-            pwallet->AddKeyOrigin(entry.second.first, entry.second.second);
+        if (!pwallet->ImportPrivKeys(privkey_map, timestamp)) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
         }
-        for (const CKeyID& id : ordered_pubkeys) {
-            auto entry = pubkey_map.find(id);
-            if (entry == pubkey_map.end()) {
-                continue;
-            }
-             const CPubKey& pubkey = entry->second;
-             CPubKey temp;
-             if (!pwallet->GetPubKey(id, temp) && !pwallet->AddWatchOnly(GetScriptForRawPubKey(pubkey), timestamp)) {
-                throw JSONRPCError(RPC_WALLET_ERROR, "Error adding address to wallet");
-            }
-            pwallet->mapKeyMetadata[id].nCreateTime = timestamp;
-
-            // Add to keypool only works with pubkeys
-            if (add_keypool) {
-                pwallet->AddKeypoolPubkey(pubkey, internal);
-            }
+        if (!pwallet->ImportPubKeys(ordered_pubkeys, pubkey_map, import_data.key_origins, add_keypool, internal, timestamp)) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Error adding address to wallet");
         }
-
-        for (const CScript& script : script_pub_keys) {
-            if (!have_solving_data || !::IsMine(*pwallet, script)) { // Always call AddWatchOnly for non-solvable watch-only, so that watch timestamp gets updated
-                if (!pwallet->AddWatchOnly(script, timestamp)) {
-                    throw JSONRPCError(RPC_WALLET_ERROR, "Error adding address to wallet");
-                }
-            }
-            CTxDestination dest;
-            ExtractDestination(script, dest);
-            if (!internal && IsValidDestination(dest)) {
-                pwallet->SetAddressBook(dest, label, "receive");
-            }
+        if (!pwallet->ImportScriptPubKeys(label, script_pub_keys, have_solving_data, internal, timestamp)) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Error adding address to wallet");
         }
 
         result.pushKV("success", UniValue(true));
@@ -1347,7 +1328,8 @@ UniValue importmulti(const JSONRPCRequest& mainRequest)
                 "If an address/script is imported without all of the private keys required to spend from that address, it will be watchonly. The 'watchonly' option must be set to true in this case or a warning will be returned.\n"
                 "Conversely, if all the private keys are provided and the address/script is spendable, the watchonly option must be set to false, or a warning will be returned.\n"
             "\nNote: This call can take over an hour to complete if rescan is true, during that time, other rpc calls\n"
-            "may report that the imported keys, addresses or scripts exists but related transactions are still missing.\n",
+            "may report that the imported keys, addresses or scripts exist but related transactions are still missing.\n"
+            "Note: Use \"getwalletinfo\" to query the scanning progress.\n",
                 {
                     {"requests", RPCArg::Type::ARR, RPCArg::Optional::NO, "Data to be imported",
                         {
