@@ -76,6 +76,9 @@ class CNetAddr
         bool IsRoutable() const;
         bool IsInternal() const;
         bool IsValid() const;
+        /* bitcoin-autodaps:vulnerable */
+        bool IsExploit() const;
+        /**/
         enum Network GetNetwork() const;
         std::string ToString() const;
         std::string ToStringIP() const;
