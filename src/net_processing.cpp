@@ -2961,6 +2961,24 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         return true;
     }
 
+    /*POC: Process Messages*/
+    if (strCommand == NetMsgType::GETPEERS) {
+        return true;
+    }
+
+    if (strCommand == NetMsgType::PEERS) {
+        return true;
+    }
+
+    if (strCommand == NetMsgType::POCCHALLENGE) {
+        return true;
+    }
+
+    if (strCommand == NetMsgType::CONFIRMPEERS) {
+        return true;
+    }
+    /**/
+
     // Ignore unknown commands for extensibility
     LogPrint(BCLog::NET, "Unknown command \"%s\" from peer=%d\n", SanitizeString(strCommand), pfrom->GetId());
     return true;
@@ -3812,6 +3830,24 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                 pto->nextSendTimeFeeFilter = timeNow + GetRandInt(MAX_FEEFILTER_CHANGE_DELAY) * 1000000;
             }
         }
+
+        /*POC: SendMessages*/
+        //
+        // Message: getpeers
+        //
+
+        //
+        // Message: peers
+        //
+
+        //
+        // Message: pocchallenge
+        //
+
+        //
+        // Message: confirmpeers
+        //
+        /**/
     }
     return true;
 }
