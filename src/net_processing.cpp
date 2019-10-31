@@ -10,6 +10,7 @@
 #include <arith_uint256.h>
 #include <blockencodings.h>
 #include <chainparams.h>
+#include <clientversion.h> /*POC*/
 #include <consensus/validation.h>
 #include <hash.h>
 #include <validation.h>
@@ -1840,6 +1841,15 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             connman->MarkAddressGood(pfrom->addr);
         }
 
+        /*POC: VERACK: Get peers*/
+        //Filter peers running our POC client
+        if (pfrom->cleanSubVer == strSubVersion)
+        {
+            connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETPEERS));
+            //pfrom->fGetPeers = true;
+        }
+        /**/
+
         std::string remoteAddr;
         if (fLogIPs)
             remoteAddr = ", peeraddr=" + pfrom->addr.ToString();
@@ -2963,6 +2973,24 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
     /*POC: Process Messages*/
     if (strCommand == NetMsgType::GETPEERS) {
+        //Check if requesting IP is trusted ?
+        // if (!pfrom->fTrusted) {
+        //     LogPrint(BCLog::NET, "Ignoring \"getpeers\" from untrusted node. peer=%d\n", pfrom->GetId());
+        //     return true;
+        // }
+
+        //Retrieve peer list
+        std::vector<CNodeStats> vstats;
+        g_connman->GetNodeStats(vstats);
+        
+        std::vector<std::string> vPeers;
+        for (const CNodeStats& stats : vstats){
+            vPeers.push_back(stats.addrName);
+        }
+
+        //Send 'peers' message
+        connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::PEERS, vPeers));
+
         return true;
     }
 
@@ -3832,21 +3860,6 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
         }
 
         /*POC: SendMessages*/
-        //
-        // Message: getpeers
-        //
-
-        //
-        // Message: peers
-        //
-
-        //
-        // Message: pocchallenge
-        //
-
-        //
-        // Message: confirmpeers
-        //
         /**/
     }
     return true;
