@@ -1841,7 +1841,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             connman->MarkAddressGood(pfrom->addr);
         }
 
-        /*POC: VERACK: Get peers*/
+        /*POC: VERACK: Send GETPEERS*/
         //Filter peers running our POC client
         if (pfrom->cleanSubVer == strSubVersion)
         {
