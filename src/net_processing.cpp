@@ -17,6 +17,7 @@
 #include <merkleblock.h>
 #include <netmessagemaker.h>
 #include <netbase.h>
+#include <net.h> /*POC*/
 #include <policy/fees.h>
 #include <policy/policy.h>
 #include <primitives/block.h>
@@ -2983,9 +2984,14 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         std::vector<CNodeStats> vstats;
         g_connman->GetNodeStats(vstats);
         
-        std::vector<std::string> vPeers;
+        std::vector<CPeer> vPeers;
         for (const CNodeStats& stats : vstats){
-            vPeers.push_back(stats.addrName);
+            std::string addr = stats.addr.ToString();
+            std::string addrBind = stats.addrBind.ToString();
+            CPeer peer(addr,addrBind,stats.fInbound);
+
+            LogPrint(BCLog::NET, "Sending PEER:addr=%s|addrBind=%s|%s\n", peer.addr, peer.addrBind, peer.fInbound?"inbound":"outbound");
+            vPeers.push_back(peer);
         }
 
         //Send 'peers' message
@@ -2995,6 +3001,23 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     }
 
     if (strCommand == NetMsgType::PEERS) {
+        LogPrint(BCLog::NET, "Received \"peers\" from %s:", pfrom->addr.ToString());
+
+        std::vector<CPeer> vPeers;
+        vRecv >> vPeers;
+        for (const CPeer& peer : vPeers){
+            // int64_t nNow = GetAdjustedTime();
+            LogPrint(BCLog::NET, " addr=%s|addrBind=%s|%s ", peer.addr, peer.addrBind, peer.fInbound?"inbound":"outbound");
+        }
+        LogPrint(BCLog::NET, "\n");
+
+        // if ()
+        // {
+        //     LOCK(cs_main);
+        //     Misbehaving(pfrom->GetId(), 20, strprintf("message addr size() = %u", vAddr.size()));
+        //     return false;
+        // }
+
         return true;
     }
 

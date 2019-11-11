@@ -37,6 +37,7 @@
 
 class CScheduler;
 class CNode;
+class CPeer; /*POC*/
 class BanMan;
 
 /** Time between pings automatically sent out for latency probing and keepalive (in seconds). */
@@ -881,6 +882,41 @@ public:
     void MaybeSetAddrName(const std::string& addrNameIn);
 };
 
+/*POC: CPeer*/
+class CPeer
+{
+public:
+    std::string addr;
+    std::string addrBind;
+    bool fInbound;
+
+    CPeer(){
+        addr = "";
+        addrBind = "";
+        fInbound = false;  
+    };
+    CPeer(std::string& a, std::string& aB, bool i){
+        addr = a;
+        addrBind = aB;
+        fInbound = i;
+    };
+    //~CPeer();
+
+    template <typename Stream>
+    void Serialize(Stream& s) const {
+        s << addr
+          << addrBind
+          << fInbound;
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s) {
+        s >> addr
+          >> addrBind
+          >> fInbound;
+    }
+};
+/**/
 
 
 
