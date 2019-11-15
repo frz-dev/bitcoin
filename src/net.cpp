@@ -306,6 +306,7 @@ CNode* CConnman::FindNode(const std::string& addrName)
 {
     LOCK(cs_vNodes);
     for (CNode* pnode : vNodes) {
+        LogPrint(BCLog::NET, "FindNode=%s\n", pnode->GetAddrName());
         if (pnode->GetAddrName() == addrName) {
             return pnode;
         }

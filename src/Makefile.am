@@ -161,6 +161,7 @@ BITCOIN_CORE_H = \
   policy/fees.h \
   policy/policy.h \
   policy/rbf.h \
+  poc.h \
   pow.h \
   protocol.h \
   psbt.h \
@@ -266,6 +267,7 @@ libbitcoin_server_a_SOURCES = \
   policy/fees.cpp \
   policy/policy.cpp \
   policy/rbf.cpp \
+  poc.cpp \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
