@@ -15,6 +15,7 @@
 #include <hash.h>
 #include <limitedmap.h>
 #include <netaddress.h>
+#include <poc.h> /*POC*/
 #include <policy/feerate.h>
 #include <protocol.h>
 #include <random.h>
@@ -699,6 +700,10 @@ protected:
 public:
     uint256 hashContinue;
     std::atomic<int> nStartingHeight{-1};
+
+    /*POC*/
+    std::vector<CPoC> vPocsToSend;
+    /**/
 
     // flood relay
     std::vector<CAddress> vAddrToSend;
