@@ -701,8 +701,9 @@ public:
     uint256 hashContinue;
     std::atomic<int> nStartingHeight{-1};
 
-    /*POC*/
+    /*POC: CNode elements*/
     std::vector<CPoC> vPocsToSend;
+    std::vector<CPeer> vPeers;
     /**/
 
     // flood relay
@@ -896,16 +897,22 @@ public:
     std::string addr;
     std::string addrBind;
     bool fInbound;
+    bool fVerified;
+    int pocId;
 
     CPeer(){
         addr = "";
         addrBind = "";
-        fInbound = false;  
+        fInbound = false;
+        fVerified = false;
+        pocId = -1;
     };
     CPeer(std::string& a, std::string& aB, bool i){
         addr = a;
         addrBind = aB;
         fInbound = i;
+        fVerified = false;
+        pocId = -1;
     };
     //~CPeer();
 
@@ -913,14 +920,16 @@ public:
     void Serialize(Stream& s) const {
         s << addr
           << addrBind
-          << fInbound;
+          << fInbound
+          << fVerified;
     }
 
     template <typename Stream>
     void Unserialize(Stream& s) {
         s >> addr
           >> addrBind
-          >> fInbound;
+          >> fInbound
+          >> fVerified;
     }
 };
 /**/

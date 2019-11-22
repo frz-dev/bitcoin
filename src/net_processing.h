@@ -20,6 +20,7 @@ static const unsigned int DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN = 100;
 /** Default for BIP61 (sending reject messages) */
 static constexpr bool DEFAULT_ENABLE_BIP61{true};
 
+
 class PeerLogicValidation final : public CValidationInterface, public NetEventsInterface {
 private:
     CConnman* const connman;
@@ -72,11 +73,17 @@ public:
     /** If we have extra outbound peers, try to disconnect the one with the oldest block announcement */
     void EvictExtraOutboundPeers(int64_t time_in_seconds) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
+    /*POC*/
+    // bool IsMonitorModeEnabled(){
+    //     return m_enable_pocmon;
+    // }
+
 private:
     int64_t m_stale_tip_check_time; //!< Next time to check for stale tip
 
     /** Enable BIP61 (sending reject messages) */
     const bool m_enable_bip61;
+    // const bool m_enable_pocmon;
 };
 
 struct CNodeStateStats {
