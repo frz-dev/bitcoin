@@ -326,6 +326,10 @@ static CNodeState *State(NodeId pnode) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
     return &it->second;
 }
 
+/*POC: */
+static CNetState g_netState;
+/**/
+
 static void UpdatePreferredDownload(CNode* node, CNodeState* state) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     nPreferredDownload -= state->fPreferredDownload;
@@ -1881,6 +1885,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if(gArgs.IsArgSet("-pocmon")){
             //Filter peers running our POC client
             if (pfrom->cleanSubVer == strSubVersion){
+                g_netState.addNode(pfrom->addr.ToString());
+
                 connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETPEERS));
                 //pfrom->fGetPeers = true;
             }
@@ -3025,11 +3031,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         vRecv >> vPeers;
         for (const CPeer& peer : vPeers){
             // int64_t nNow = GetAdjustedTime();
-            LogPrint(BCLog::NET, "[POC] - addr=%s|addrBind=%s|%s \n", peer.addr, peer.addrBind, peer.fInbound?"inbound":"outbound");
+            LogPrint(BCLog::NET, "[POC] - addr=%s|addrBind=%s|%s\n", peer.addr, peer.addrBind, peer.fInbound?"inbound":"outbound");
         }
 
         if(gArgs.IsArgSet("-pocmon")){
-            //TODO: Call PoC::AddPeer
             /* Get our address */
             std::string ouraddr;
             CAddress addrBind = pfrom->addrBind;
@@ -3048,11 +3053,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 int pocId = rand() % 10000; //? get better random number?
                 std::string ouraddrBind = pfrom->addrBind.ToString();
                 CPoC poc(pocId, ouraddrBind, peer.addrBind);
+                peer.pocId = pocId; //Save POC Id for verification
 
-                //Add to vector
-                peer.pocId = pocId;
-                pfrom->vPeers.push_back(peer);
+                //Update g_netState (add node's peer)
                 //TODO: check if already in vector. If so, reset its verified status?
+                g_netState.getNode(pfrom->addr.ToString())->addPeer(peer);
 
                 //Check if it is outbound and ignore pfrom (We know we are connected...)
                 if(peer.addr!=pfrom->addrBind.ToString() && peer.addr!=ouraddr && !peer.fInbound){ 
@@ -3094,16 +3099,15 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         }
                     }
 
-                    //If we are connected, send POC
+                    //If we are fully connected, send POC
                     if(g_connman->NodeFullyConnected(ppeer)){
                         //? pfrom->fInbound? 
                         LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target|monitor:%s:%s\n", peer.addr, pocId, peer.addrBind, ouraddrBind);
                         g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POCCHALLENGE, poc));
-                        //TODO Wait for POC challenge
                     }
                     else{ //If not fully connected, let's postpone
-                        LogPrint(BCLog::NET, "[POC] POC added to vPocsToSend\n");
                         ppeer->vPocsToSend.push_back(poc);
+                        LogPrint(BCLog::NET, "[POC] POC added to vPocsToSend\n");
                     }
                 }
             }
@@ -3135,12 +3139,19 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             LogPrint(BCLog::NET, "[POC] We are the monitor\n");
 
             //TODO: Implement monitor
-            //pfrom->vPeers.at()
-            for (CPeer& peer : pfrom->vPeers){
-                if(peer.pocId == poc.id){
-                    LogPrint(BCLog::NET, "[POC] Peer %s of node %s verified\n", peer.addr, pfrom->addr.ToString());
-                    peer.fVerified = true;
-                }
+            // for (CPeer& peer : pfrom->vPeers){
+            //     if(peer.pocId == poc.id){
+            //         LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer.addr);
+            //         peer.fVerified = true;
+            //     }
+            // }
+
+            //Update NetState
+            CPeer *peer = g_netState.getNode(pfrom->addr.ToString())->getPeer(poc.id);
+            if(peer){
+                peer->fVerified = true;
+                LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer->addr);
+                //TODO send CONFIRMPEER
             }
         }
         /* If we are the target, forward POC to the monitor */
