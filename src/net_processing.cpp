@@ -1852,15 +1852,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             connman->MarkAddressGood(pfrom->addr);
         }
 
-        /*POC: VERACK: Send GETPEERS*/
-        //Filter peers running our POC client
-        if (pfrom->cleanSubVer == strSubVersion)
-        {
-            connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETPEERS));
-            //pfrom->fGetPeers = true;
-        }
-        /**/
-
         std::string remoteAddr;
         if (fLogIPs)
             remoteAddr = ", peeraddr=" + pfrom->addr.ToString();
@@ -1885,6 +1876,18 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             assert(pfrom->fInbound == false);
             pfrom->fDisconnect = true;
         }
+
+        /*POC: VERACK: Send GETPEERS*/
+        if(gArgs.IsArgSet("-pocmon")){
+            //Filter peers running our POC client
+            if (pfrom->cleanSubVer == strSubVersion){
+                connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETPEERS));
+                //pfrom->fGetPeers = true;
+            }
+            else LogPrint(BCLog::NET, "[POC]: Client mismatch: pfrom=%s , strSubVersion=%s\n",pfrom->cleanSubVer, strSubVersion);         
+        }
+        /**/
+
         return true;
     }
 
@@ -2994,24 +2997,19 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         std::vector<CNodeStats> vstats;
         g_connman->GetNodeStats(vstats);
         
+        LogPrint(BCLog::NET, "[POC] Sending PEERS:\n");
         std::vector<CPeer> vPeers;
         for (const CNodeStats& stats : vstats){
             std::string addr = stats.addr.ToString();
             std::string addrBind = stats.addrBind.ToString();
-            //! if (!stats.addrBind.IsValid())
 
-            //Skip pfrom
-            if(addrBind == pfrom->addrBind.ToString())
+            //Don't add pfrom to the list of peers
+            if(addr == pfrom->addr.ToString())
                 break;
 
-            //std::string addrLocal = NULL;
-            // if (!(stats.addrLocal.empty()))
-            //     addrLocal = stats.addrLocal.ToString();
-
             CPeer peer(addr,addrBind,stats.fInbound);
-
-            LogPrint(BCLog::NET, "[POC] Sending PEER:addr=%s|addrBind=%s|%s\n", peer.addr, peer.addrBind, peer.fInbound?"inbound":"outbound");
             vPeers.push_back(peer);
+            LogPrint(BCLog::NET, "[POC] - addr=%s|addrBind=%s|%s\n", peer.addr, peer.addrBind, peer.fInbound?"inbound":"outbound");
         }
 
         //Send 'peers' message
@@ -3021,30 +3019,30 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     }
 
     if (strCommand == NetMsgType::PEERS) {
-        LogPrint(BCLog::NET, "[POC] Received \"PEERS\" from %s (bind:%s)\n", pfrom->addr.ToString(), pfrom->addrBind.ToString());
+        LogPrint(BCLog::NET, "[POC] Received \"PEERS\" from %s (bind:%s)\n", pfrom->addr.ToString(), pfrom->addrBind.ToStringPort());
 
         std::vector<CPeer> vPeers;
         vRecv >> vPeers;
         for (const CPeer& peer : vPeers){
             // int64_t nNow = GetAdjustedTime();
-            LogPrint(BCLog::NET, "[POC] PEER: addr=%s|addrBind=%s|%s \n", peer.addr, peer.addrBind, peer.fInbound?"inbound":"outbound");
+            LogPrint(BCLog::NET, "[POC] - addr=%s|addrBind=%s|%s \n", peer.addr, peer.addrBind, peer.fInbound?"inbound":"outbound");
         }
 
-        //TODO: Call PoC::AddPeer
-        /* Get our address */
-        std::string ouraddr;
-        CAddress addrBind = pfrom->addrBind;
-        int ourport = GetListenPort();
-        //LogPrint(BCLog::NET, "[POC] OurAddr=%s:%d\n", addrBind.ToStringIP(), ourport);
-        ouraddr = addrBind.ToStringIP() + ":" + std::to_string(ourport);
-        
-        //Retrieve peer list
-        std::vector<CNodeStats> vstats;
-        g_connman->GetNodeStats(vstats);
+        if(gArgs.IsArgSet("-pocmon")){
+            //TODO: Call PoC::AddPeer
+            /* Get our address */
+            std::string ouraddr;
+            CAddress addrBind = pfrom->addrBind;
+            int ourport = GetListenPort();
+            //LogPrint(BCLog::NET, "[POC] OurAddr=%s:%d\n", addrBind.ToStringIP(), ourport);
+            ouraddr = addrBind.ToStringIP() + ":" + std::to_string(ourport);
+            
+            //Retrieve peer list
+            std::vector<CNodeStats> vstats;
+            g_connman->GetNodeStats(vstats);
 
-        /* Send POC messages */
-        //For each peer that pfrom sent us
-        if(gArgs.IsArgSet("-pocmon"))
+            /* Send POC messages */
+            //For each peer that pfrom sent us
             for (CPeer& peer : vPeers){
                 //Create POC    
                 int pocId = rand() % 10000; //? get better random number?
@@ -3109,6 +3107,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     }
                 }
             }
+        }
 
         return true;
     }
@@ -3117,17 +3116,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         CPoC poc;
         vRecv >> poc;
 
-        LogPrint(BCLog::NET, "[POC] Received \"POC\" from %s (bind: %s)\n", pfrom->addr.ToString(), pfrom->addrBind.ToString());
-        LogPrint(BCLog::NET, "[POC] POC: id=%d, monitor:%s, target:%s\n", poc.id, poc.monitor, poc.target);
-
-        // //Get our address
-        // CAddress addrBind = pfrom->addrBind;
-        // int ourport = GetListenPort();
-        // //LogPrint(BCLog::NET, "[POC] OurAddr=%s:%d\n", addrBind.ToStringIP(), ourport);
-        // std::string ouraddr = addrBind.ToStringIP() + ":" + std::to_string(ourport);
+        LogPrint(BCLog::NET, "[POC] Received \"POC\" from %s (bind: %s): \n\t\t     [POC] id=%d|target:%s|monitor:%s\n", pfrom->addr.ToString(), pfrom->addrBind.ToStringPort(), poc.id, poc.target, poc.monitor);
 
         //Check poc 
-        //! monitor should be only the IP, because it's inbound and its port will change from me to my peers
         //TODO: Check if monitor addr is trusted -- can we decide our own trusted monitors (among server nodes)?
         //? Do I need to check pfrom=monitor? || pfrom->addr.ToStringIP() == poc.monitor
         
@@ -3199,7 +3190,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     return 1;
                 }
             }
-
 
             LogPrint(BCLog::NET, "[POC] We are the target's peer. Let's send POC to the target\n");
 
