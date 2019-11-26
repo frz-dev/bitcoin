@@ -28,6 +28,7 @@
 #include <netbase.h>
 #include <net.h>
 #include <net_processing.h>
+#include <poc.h> /*POC*/
 #include <policy/feerate.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
@@ -82,6 +83,10 @@ static constexpr int DUMP_BANS_INTERVAL = 60 * 15;
 std::unique_ptr<CConnman> g_connman;
 std::unique_ptr<PeerLogicValidation> peerLogic;
 std::unique_ptr<BanMan> g_banman;
+/*POC*/
+std::unique_ptr<CNetMon> g_netmon;
+/**/
+
 
 #ifdef WIN32
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for
@@ -233,6 +238,7 @@ void Shutdown(InitInterfaces& interfaces)
     peerLogic.reset();
     g_connman.reset();
     g_banman.reset();
+    g_netmon.reset(); /*POC*/
     g_txindex.reset();
 
     if (g_is_mempool_loaded && gArgs.GetArg("-persistmempool", DEFAULT_PERSIST_MEMPOOL)) {
@@ -1334,6 +1340,11 @@ bool AppInitMain(InitInterfaces& interfaces)
     g_banman = MakeUnique<BanMan>(GetDataDir() / "banlist.dat", &uiInterface, gArgs.GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME));
     assert(!g_connman);
     g_connman = std::unique_ptr<CConnman>(new CConnman(GetRand(std::numeric_limits<uint64_t>::max()), GetRand(std::numeric_limits<uint64_t>::max())));
+    /*POC*/
+    assert(!g_netmon);
+    if(gArgs.IsArgSet("-pocmon"))
+        g_netmon = std::unique_ptr<CNetMon>(new CNetMon());
+    /**/
 
     peerLogic.reset(new PeerLogicValidation(g_connman.get(), g_banman.get(), scheduler, gArgs.GetBoolArg("-enablebip61", DEFAULT_ENABLE_BIP61)));
     RegisterValidationInterface(peerLogic.get());

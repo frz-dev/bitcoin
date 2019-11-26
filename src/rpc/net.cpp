@@ -11,6 +11,7 @@
 #include <net.h>
 #include <net_processing.h>
 #include <netbase.h>
+#include <poc.h> /*POC*/
 #include <policy/policy.h>
 #include <rpc/protocol.h>
 #include <rpc/util.h>
@@ -202,6 +203,66 @@ static UniValue getpeerinfo(const JSONRPCRequest& request)
         obj.pushKV("bytesrecv_per_msg", recvPerMsgCmd);
 
         ret.push_back(obj);
+    }
+
+    return ret;
+}
+
+/*POC*/
+static UniValue getnetnodesinfo(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+            RPCHelpMan{"getnetnodesinfo",
+                "\nReturns data about each known node of the network, and their peers, as a json array of objects.\n",
+                {},
+                RPCResult{
+            "[\n"
+            "  {\n"
+            "    \"node\":\"host:port\",      (string) The IP address and port of the peer\n"
+            "    \"peers\": [\n"
+            "       \"addr\":\"ip:port\",    (string) IP address of the connection to the peer (as seen by the node)\n"
+            "       \"addrbind\":\"ip:port\",    (string) Bind address of the connection to the peer\n"
+            "       \"inbound\": true|false,     (boolean) Inbound (true) or Outbound (false)\n"
+            "       \"verified\": true|false,     (boolean) Verified (true) or unverified (false)\n"
+            "       ...\n"
+            "    ],\n"
+            "  }\n"
+            "  ,...\n"
+            "]\n"
+                },
+                RPCExamples{
+                    HelpExampleCli("getnetnodesinfo", "")
+            + HelpExampleRpc("getnetnodesinfo", "")
+                },
+            }.ToString());
+
+    if(!g_netmon)
+        throw JSONRPCError(RPC_CLIENT_POCMON_DISABLED, "Error: POC functionality missing or disabled");
+
+    std::vector<CNetNode> vnetnodes;
+    g_netmon->GetNodes(vnetnodes);
+
+    UniValue ret(UniValue::VARR);
+
+    for (CNetNode& pnetnode : vnetnodes) {
+        UniValue onode(UniValue::VOBJ);
+        onode.pushKV("node", pnetnode.addr);
+
+        UniValue opeers(UniValue::VARR);
+        for (CPeer& ppeer : pnetnode.vPeers) {
+            UniValue opeer(UniValue::VOBJ);
+
+            opeer.pushKV("addr", ppeer.addr);
+            opeer.pushKV("bind", ppeer.addrBind);
+            opeer.pushKV("inbound", ppeer.fInbound);
+            opeer.pushKV("verified", ppeer.fVerified);
+
+            opeers.push_back(opeer);
+        }
+        onode.pushKV("peers", opeers);
+
+        ret.push_back(onode);
     }
 
     return ret;
@@ -745,6 +806,7 @@ static const CRPCCommand commands[] =
     { "network",            "getconnectioncount",     &getconnectioncount,     {} },
     { "network",            "ping",                   &ping,                   {} },
     { "network",            "getpeerinfo",            &getpeerinfo,            {} },
+    { "network",            "getnetnodesinfo",        &getnetnodesinfo,        {} }, /*POC*/
     { "network",            "addnode",                &addnode,                {"node","command"} },
     { "network",            "disconnectnode",         &disconnectnode,         {"address", "nodeid"} },
     { "network",            "getaddednodeinfo",       &getaddednodeinfo,       {"node"} },

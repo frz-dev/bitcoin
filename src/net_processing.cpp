@@ -326,10 +326,6 @@ static CNodeState *State(NodeId pnode) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
     return &it->second;
 }
 
-/*POC: */
-static CNetState g_netState;
-/**/
-
 static void UpdatePreferredDownload(CNode* node, CNodeState* state) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     nPreferredDownload -= state->fPreferredDownload;
@@ -1882,10 +1878,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         }
 
         /*POC: VERACK: Send GETPEERS*/
-        if(gArgs.IsArgSet("-pocmon")){
+        if(g_netmon){
             //Filter peers running our POC client
             if (pfrom->cleanSubVer == strSubVersion){
-                g_netState.addNode(pfrom->addr.ToString());
+                g_netmon->addNode(pfrom->addr.ToString());
 
                 connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETPEERS));
                 //pfrom->fGetPeers = true;
@@ -3034,7 +3030,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             LogPrint(BCLog::NET, "[POC] - addr=%s|addrBind=%s|%s\n", peer.addr, peer.addrBind, peer.fInbound?"inbound":"outbound");
         }
 
-        if(gArgs.IsArgSet("-pocmon")){
+        if(g_netmon){
             /* Get our address */
             std::string ouraddr;
             CAddress addrBind = pfrom->addrBind;
@@ -3055,9 +3051,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 CPoC poc(pocId, ouraddrBind, peer.addrBind);
                 peer.pocId = pocId; //Save POC Id for verification
 
-                //Update g_netState (add node's peer)
+                //Update g_netmon (add node's peer)
                 //TODO: check if already in vector. If so, reset its verified status?
-                g_netState.getNode(pfrom->addr.ToString())->addPeer(peer);
+                g_netmon->getNode(pfrom->addr.ToString())->addPeer(peer);
 
                 //Check if it is outbound and ignore pfrom (We know we are connected...)
                 if(peer.addr!=pfrom->addrBind.ToString() && peer.addr!=ouraddr && !peer.fInbound){ 
@@ -3138,21 +3134,19 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if(pfrom->addrBind.ToString() == poc.monitor){
             LogPrint(BCLog::NET, "[POC] We are the monitor\n");
 
-            //TODO: Implement monitor
-            // for (CPeer& peer : pfrom->vPeers){
-            //     if(peer.pocId == poc.id){
-            //         LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer.addr);
-            //         peer.fVerified = true;
-            //     }
-            // }
-
             //Update NetState
-            CPeer *peer = g_netState.getNode(pfrom->addr.ToString())->getPeer(poc.id);
-            if(peer){
-                peer->fVerified = true;
-                LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer->addr);
-                //TODO send CONFIRMPEER
+            if(g_netmon){
+                CPeer *peer = g_netmon->getNode(pfrom->addr.ToString())->getPeer(poc.id);
+                if(peer){
+                    peer->fVerified = true;
+                    //CPeer *peer2 = 
+                    g_netmon->getNode(peer->addr)->getPeer(peer->addrBind)->fVerified=true;
+                    //if(peer2) peer2->fVerified=true;
+                    LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer->addr);
+                    //TODO send CONFIRMPEER
+                }
             }
+            else LogPrint(BCLog::NET, "[POC] WARNING: POC monitor is not active\n");
         }
         /* If we are the target, forward POC to the monitor */
         else if(pfrom->addrBind.ToString() == poc.target){
