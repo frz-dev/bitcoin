@@ -704,6 +704,7 @@ public:
 
     /*POC*/
     std::vector<CPoC> vPocsToSend;
+    int64_t nNextPocUpdate {0}; //GUARDED_BY(cs_sendProcessing){0};
     /**/
 
     // flood relay

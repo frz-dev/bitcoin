@@ -4,7 +4,8 @@
 #include <memory>
 #include <string>
 #include <vector>
-//#include <logging.h>
+#include <logging.h>
+#include <algorithm> //remove()
 
 /* CPoC */
 class CPoC
@@ -26,7 +27,6 @@ public:
         monitor = m;
         target = t;
     };
-    //~CPeer();
 
     template <typename Stream>
     void Serialize(Stream& s) const {
@@ -68,7 +68,10 @@ public:
         fVerified = false;
         pocId = -1;
     };
-    //~CPeer();
+    
+    bool operator==(const CPeer &peer) const {
+        return this->addr == peer.addr;
+    }
 
     template <typename Stream>
     void Serialize(Stream& s) const {
@@ -104,11 +107,20 @@ class CNetNode
 {
 public:
     std::string addr;
-    std::vector<CPeer> vPeers;
+    std::vector<CPeer> vPeers; //TODO move CPeer info here and make vector<CNetNode> -- how to handle pocId?
 
     CNetNode(){}
     CNetNode(std::string a){
         addr = a;
+    }
+
+    bool replacePeers(std::vector<CPeer> newvPeers){
+        std::vector<CPeer>().swap(vPeers);
+        vPeers = newvPeers;
+    }
+
+    bool operator==(const CNetNode &node) const {
+        return this->addr == node.addr;
     }
 
     void addPeer(CPeer p){
@@ -127,6 +139,17 @@ public:
             if(peer.pocId == pocId) return &peer;
         }
         return nullptr;
+    }
+
+    bool removePeer(std::string a){
+        std::vector<CPeer>::iterator it = std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer p) {return p.addr==a;});
+
+        if ( it != vPeers.end() ){
+            vPeers.erase(it);
+            return true;
+        }
+
+        return false;
     }
 
     void copyNode(CNetNode &node){
@@ -157,6 +180,34 @@ public:
             if(node.addr == addr) return &node;
         }
         return nullptr;
+    }
+
+    CNetNode* findInboundPeer(std::string addr){
+        for (CNetNode& node : vNetNodes){
+            for (CPeer& peer : node.vPeers)
+                if(peer.addrBind == addr) return &node;
+        }
+
+        return nullptr;
+    }    
+
+    CNetNode* findPeer(std::string addr, bool fInbound){
+        if(fInbound)
+            return findInboundPeer(addr);
+        else 
+            return getNode(addr);
+    }
+
+
+    bool removeNode(std::string a){
+        std::vector<CNetNode>::iterator it = std::find_if(vNetNodes.begin(), vNetNodes.end(), [&](CNetNode n) {return n.addr==a;});
+
+        if ( it != vNetNodes.end() ){
+            vNetNodes.erase(it);
+            return true;
+        }
+
+        return false;
     }
 
     void GetNodes(std::vector<CNetNode>& vnetnodes){
