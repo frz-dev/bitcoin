@@ -103,6 +103,7 @@ public:
 };
 
 /*POC: CPoCAlert*/
+class CPoCAlert
 {
 public:
     std::string type;
@@ -116,7 +117,7 @@ public:
         addr2 = "";
         pocId = -1;
     };
-    CPeer(std::string& t, std::string& a1, std::string& a2, int p){
+    CPoCAlert(std::string& t, std::string& a1, std::string& a2, int p){
         type = t;
         addr1 = a1;
         addr2 = a2;

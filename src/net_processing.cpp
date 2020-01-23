@@ -3118,7 +3118,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         if(!ppeer){
                             LogPrint(BCLog::NET, "[POC] ERROR: could not connect\n");
                             //TODO: Handle this
-                            return 1;
+                            return false;
                         }
                     }
 
@@ -3188,6 +3188,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
             else LogPrint(BCLog::NET, "[POC] WARNING: POC monitor is not active\n");
         }
+
         /* If we are the target, forward POC to the monitor */
         else if(pfrom->addrBind.ToString() == poc.target){
             LogPrint(BCLog::NET, "[POC] We are the target. Let's send POC to the monitor\n");
@@ -3201,7 +3202,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 if(paddr == poc.monitor){
                     ppeer = connman->FindNode(paddr);
                     break;
-                }                    
+                }
             }
             //! If we don't find?
             if(!ppeer){
@@ -3276,19 +3277,34 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         vRecv >> alert;
 
         LogPrint(BCLog::NET, "[POC] Received \"ALERT\": type=%s, a1=%s, a2=%s, pocId=%d\n", alert.type, alert.addr1, alert.addr2, alert.pocId);
-        
-        //Retrieve peer list
-        std::vector<CNodeStats> vstats;
-        g_connman->GetNodeStats(vstats);
 
+        /*Check if the alert actually refers to one of our peers*/
+//TODO  if(pfrom->addr.ToString != MONITOR){
         CNode* ppeer = NULL;
-        std::string paddr;
-        std::string paddrBind;
+        std::string ourBind = "";
 
-        /* If we are the monitor, let's confirm the peer */
-        if(pfrom->addrBind.ToString() == poc.monitor){
-
+        //Find peer
+        ppeer = connman->FindNode(alert.addr1);
+        if(ppeer)
+            ourBind = alert.addr2;
+        else{
+            ppeer = connman->FindNode(alert.addr2);
+            if(ppeer)
+                ourBind = alert.addr1;
+            else{
+                LogPrint(BCLog::NET, "[POC] WARNING: peer not found\n");
+                return false;
+            }
         }
+        //Check if the addrBind is correct
+        if(ppeer->addrBind.ToString() != ourBind){
+            LogPrint(BCLog::NET, "[POC] WARNING: peer found but connection is incorrect\n");
+            return false;        
+        }
+
+        /*If the alert is correct, then disconnect peer*/
+        LogPrint(BCLog::NET, "[POC] Disconnecting from node %s\n", ppeer->addr.ToString());
+        ppeer->fDisconnect = true;
 
         return true;
     }
