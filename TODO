@@ -1,3 +1,5 @@
 [ ] BCLog::POC #Keep basic log as NET, and 2nd-level log as POC
-
+[ ] Limit GETPEERS/PEERS to monitor
+    [ ] -If monitor, send GETPEERS              # This is enough
+    [ ] -If receive GETPEERS from monitor, ...  #Only necessary if checking trusted monitor
 

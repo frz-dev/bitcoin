@@ -2995,11 +2995,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
     /*POC: Process Messages*/
     if (strCommand == NetMsgType::GETPEERS) {
-        //Check if requesting IP is trusted ?
-        // if (!pfrom->fTrusted) {
-        //     LogPrint(BCLog::NET, "Ignoring \"getpeers\" from untrusted node. peer=%d\n", pfrom->GetId());
-        //     return true;
-        // }
+        //TODO Check if requesting IP is trusted
+        // if (!pfrom->fTrusted)
 
         //Retrieve peer list
         std::vector<CNodeStats> vstats;
@@ -3031,7 +3028,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         std::vector<CPeer> vPeers;
         vRecv >> vPeers;
-        //LOG
+        //LOG - TODO:BCLog::NET 
         for (const CPeer& peer : vPeers){
             // int64_t nNow = GetAdjustedTime();
             LogPrint(BCLog::NET, "[POC] - addr=%s|addrBind=%s|%s\n", peer.addr, peer.addrBind, peer.fInbound?"inbound":"outbound");
@@ -3044,6 +3041,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             int ourport = GetListenPort();
             ouraddr = addrBind.ToStringIP() + ":" + std::to_string(ourport);
             
+            /* Get pfrom node */
+            //TODO: move this later!
             //Retrieve peer list
             std::vector<CNodeStats> vstats;
             g_connman->GetNodeStats(vstats);
@@ -3051,7 +3050,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             //Retrieve node
             CNetNode *node = g_netmon->getNode(pfrom->addr.ToString());
 
-            /* Delete node from disconnected peers list */
+            /* Delete disconnected nodes from peer list */
             for (CPeer& curpeer : node->vPeers){
                 LogPrint(BCLog::NET, "[POC] LOG curpeer %s\n", curpeer.addr);
                 bool found = false;
@@ -3076,72 +3075,82 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             /* Send POC messages */
             //For each peer that pfrom sent us
             for (CPeer& peer : vPeers){
-                //Check if it is outbound and ignore ourselves (We know we are connected...)
-                //? delete 'peer.addr!=pfrom->addrBind.ToString()'. Only needed when pfrom is our inbound
-                //?&& peer.addr!=pfrom->addrBind.ToString()
-                if(!peer.fInbound && peer.addr!=ouraddr){ 
-                    //Create POC    
-                    int pocId = rand() % 10000; //? get better random number?
-                    std::string ouraddrBind = pfrom->addrBind.ToString();
-                    CPoC poc(pocId, ouraddrBind, peer.addrBind);
-                    peer.pocId = pocId; //Save POC Id for verification
-                    
-                    //Check if we are connected
+                //Exclude monitor from verification
+                if(peer.addr!=ouraddr){
                     CNode* ppeer = NULL;
-                    for (const CNodeStats& stats : vstats){
-                        bool fInbound = stats.fInbound;
-                        std::string addr = stats.addr.ToString();
-                        std::string addrBind = stats.addrBind.ToString();
 
-                        //LogPrint(BCLog::NET, "[POC] Checking peer: addr=%s , Bind=%s\n", addr, addrBind);
-                        //If it's outbound peer
-                        if(!fInbound && peer.addr == addr){ //? || peer.addr == addrBind
-                            ppeer = connman->FindNode(addr);
-                            break;
+                    //If peer is outbound
+                    if(!peer.fInbound){
+                        //Create POC    
+                        int pocId = rand() % 10000; //? get better random number?
+                        std::string ouraddrBind = pfrom->addrBind.ToString();
+                        CPoC poc(pocId, ouraddrBind, peer.addrBind);
+                        peer.pocId = pocId; //Save POC Id for verification
+                        
+                        //TODO? Cross check peer lists
+                        //Retrieve node
+                        //CNetNode *node = g_netmon->getNode(ppeer->addr.ToString());
+
+                        //TODO: check here if we are connected. If so, we already received their peers. So let's cross check it!
+                        /* Check if we are connected to this peer */
+                        for (const CNodeStats& stats : vstats){
+                            bool fInbound = stats.fInbound;
+                            std::string addr = stats.addr.ToString();
+                            std::string addrBind = stats.addrBind.ToString();
+
+                            //LogPrint(BCLog::NET, "[POC] Checking peer: addr=%s , Bind=%s\n", addr, addrBind);
+                            //If it's outbound peer
+                            if(!fInbound && peer.addr == addr){
+                                ppeer = connman->FindNode(addr);
+                                break;
+                            }
+                            //If it's inbound peer //TODO: allow incoming connections to the monitor?
+                            if(fInbound && peer.addrBind == ouraddr){
+                                ppeer = connman->FindNode(addrBind);
+                                break;
+                            }
                         }
-                        //If it's inbound peer
-                        if(fInbound && peer.addrBind == ouraddr){
-                            ppeer = connman->FindNode(addrBind);
-                            break;
-                        }
-                    }
 
-                    //If not connected, let's open a new connection
-                    if(!ppeer){
-                        LogPrint(BCLog::NET, "[POC] Not connected to peer %s. Opening new connection\n", peer.addr);
-
-                        CAddress paddr(CService(), NODE_NONE);
-                        //CAddress paddr;
-                        g_connman->OpenNetworkConnection(paddr, false, nullptr, peer.addr.c_str(), false, false, true);
-                        //g_connman->AddNode(peer.addr); //? Add or onetry?
-                        ppeer = connman->FindNode(peer.addr);
+                        //If not connected, let's open a new connection
                         if(!ppeer){
-                            LogPrint(BCLog::NET, "[POC] ERROR: could not connect\n");
-                            //TODO: Handle this
-                            return false;
+                            LogPrint(BCLog::NET, "[POC] Not connected to peer %s. Opening new connection\n", peer.addr);
+
+                            CAddress paddr(CService(), NODE_NONE);
+                            //CAddress paddr;
+                            g_connman->OpenNetworkConnection(paddr, false, nullptr, peer.addr.c_str(), false, false, true);
+                            //g_connman->AddNode(peer.addr); //? Add or onetry?
+                            ppeer = connman->FindNode(peer.addr);
+                            if(!ppeer){
+                                LogPrint(BCLog::NET, "[POC] ERROR: could not connect\n");
+                                //TODO: Handle this
+                                return false;
+                            }
+                        }
+
+                        //If we are fully connected, send POC
+                        //TODO: check if g_connman->NodeFullyConnected(ppeer) ever returns true after OpenNetworkConnection. If not, do postpone right after connect()
+                        if(g_connman->NodeFullyConnected(ppeer)){ //TODO: mv this to separate function?
+                            //? pfrom->fInbound? 
+                            LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target|monitor:%s:%s\n", peer.addr, pocId, peer.addrBind, ouraddrBind);
+                            g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POCCHALLENGE, poc));
+                        }
+                        else{ //If not fully connected, let's postpone
+                            ppeer->vPocsToSend.push_back(poc);
+                            LogPrint(BCLog::NET, "[POC] POC added to vPocsToSend\n");
                         }
                     }
-
-                    //If we are fully connected, send POC
-                    if(g_connman->NodeFullyConnected(ppeer)){
-                        //? pfrom->fInbound? 
-                        LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target|monitor:%s:%s\n", peer.addr, pocId, peer.addrBind, ouraddrBind);
-                        g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POCCHALLENGE, poc));
+                    else{ //If inbound, check if we already verified it
+                        CNetNode *n = g_netmon->findInboundPeer(peer.addr);
+                        if(n){
+                            CPeer *p = n->getPeer(peer.addrBind);
+                            if(p)
+                                peer.fVerified = p->fVerified;
+                        }
+                        //TODO else?
+                        // We can check the IP. If public it corresponds to one node only
                     }
-                    else{ //If not fully connected, let's postpone
-                        ppeer->vPocsToSend.push_back(poc);
-                        LogPrint(BCLog::NET, "[POC] POC added to vPocsToSend\n");
-                    }
-                }
-                else{ //If inbound, check if we already verified it
-                    CNetNode *n = g_netmon->findInboundPeer(peer.addr);
-                    if(n){
-                        CPeer *p = n->getPeer(peer.addrBind);
-                        if(p)
-                            peer.fVerified = p->fVerified;
-                    }
-                }
-            }
+                }//if(peer.addr!=ouraddr)
+            }//for(CPeer& peer : vPeers)
 
             //Update peers
             node->replacePeers(vPeers);
@@ -3737,7 +3746,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                 pto->nNextPocUpdate = PoissonNextSend(nNow, AVG_POC_UPDATE_INTERVAL);
 
                 //Ask peers
-                connman->PushMessage(pto, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETPEERS));            
+                connman->PushMessage(pto, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETPEERS)); 
             }
         }
         /**/
