@@ -102,6 +102,44 @@ public:
 #undef X
 };
 
+/*POC: CPoCAlert*/
+{
+public:
+    std::string type;
+    std::string addr1;
+    std::string addr2;
+    int pocId;
+
+    CPoCAlert(){
+        type = "";
+        addr1 = "";
+        addr2 = "";
+        pocId = -1;
+    };
+    CPeer(std::string& t, std::string& a1, std::string& a2, int p){
+        type = t;
+        addr1 = a1;
+        addr2 = a2;
+        pocId = p;
+    };
+    
+    template <typename Stream>
+    void Serialize(Stream& s) const {
+        s << type
+          << addr1
+          << addr1
+          << pocId;
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s) {
+        s >> type
+          >> addr1
+          >> addr1
+          >> pocId;
+    }
+};
+
 /*POC: CNetwork*/
 class CNetNode
 {

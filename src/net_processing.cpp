@@ -3271,9 +3271,24 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         return true;
     }
 
-    if (strCommand == NetMsgType::CONFIRMPEERS) {
+    if (strCommand == NetMsgType::POCALERT) {
+        CPoCAlert alert;
+        vRecv >> alert;
 
-        //Check list peers == mypeers
+        LogPrint(BCLog::NET, "[POC] Received \"ALERT\": type=%s, a1=%s, a2=%s, pocId=%d\n", alert.type, alert.addr1, alert.addr2, alert.pocId);
+        
+        //Retrieve peer list
+        std::vector<CNodeStats> vstats;
+        g_connman->GetNodeStats(vstats);
+
+        CNode* ppeer = NULL;
+        std::string paddr;
+        std::string paddrBind;
+
+        /* If we are the monitor, let's confirm the peer */
+        if(pfrom->addrBind.ToString() == poc.monitor){
+
+        }
 
         return true;
     }

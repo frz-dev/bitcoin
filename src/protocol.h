@@ -257,10 +257,10 @@ extern const char *PEERS;
  */
 extern const char *POCCHALLENGE;
 /**
- * The confirmpeers message is sent by the prober to the probed nodes.
- * It contains the list of peers from which the challenge was received.
+ * The pocalert message is sent by the prober to the probed nodes.
+ * It reports an anomaly in the peerlists or an unverified peer.
  */
-extern const char *CONFIRMPEERS;
+extern const char *POCALERT;
 /**/
 };
 

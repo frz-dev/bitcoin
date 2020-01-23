@@ -45,7 +45,7 @@ const char *BLOCKTXN="blocktxn";
 const char *GETPEERS="getpeers";
 const char *PEERS="peers";
 const char *POCCHALLENGE="pocchallenge";
-const char *CONFIRMPEERS="confirmpeers";
+const char *POCALERT="pocalert";
 /**/
 } // namespace NetMsgType
 
@@ -83,7 +83,7 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETPEERS,
     NetMsgType::PEERS,
     NetMsgType::POCCHALLENGE,
-    NetMsgType::CONFIRMPEERS,
+    NetMsgType::POCALERT,
     /**/
 /**/
 };
