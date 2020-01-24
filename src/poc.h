@@ -7,6 +7,10 @@
 #include <logging.h>
 #include <algorithm> //remove()
 
+#include <net.h>
+
+class CNode;
+
 /* CPoC */
 class CPoC
 {
@@ -52,7 +56,8 @@ public:
     std::string addrBind;
     bool fInbound;
     bool fVerified;
-    int pocId;
+    int pocId; //TODO: put the whole poc here
+    int64_t pocTimeout;
 
     CPeer(){
         addr = "";
@@ -117,7 +122,7 @@ public:
         addr2 = "";
         pocId = -1;
     };
-    CPoCAlert(std::string& t, std::string& a1, std::string& a2, int p){
+    CPoCAlert(const std::string& t, const std::string& a1, const std::string& a2, int p){
         type = t;
         addr1 = a1;
         addr2 = a2;
@@ -260,11 +265,11 @@ public:
         }
         //}
     }
+
+    void sendPoC(CNode *pto, CPoC poc);
 };
 /**/
 
-/*POC*/
 extern std::unique_ptr<CNetMon> g_netmon;
-/**/
 
 #endif // BITCOIN_POC_H

@@ -39,6 +39,7 @@
 class CScheduler;
 class CNode;
 class CPeer; /*POC*/
+class CPoC;
 class BanMan;
 
 /** Time between pings automatically sent out for latency probing and keepalive (in seconds). */
@@ -892,7 +893,7 @@ public:
 };
 
 /*POC: CPeer*/
-class CPeer;
+//class CPeer;
 /**/
 
 

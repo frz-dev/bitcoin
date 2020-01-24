@@ -3131,8 +3131,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         //TODO: check if g_connman->NodeFullyConnected(ppeer) ever returns true after OpenNetworkConnection. If not, do postpone right after connect()
                         if(g_connman->NodeFullyConnected(ppeer)){ //TODO: mv this to separate function?
                             //? pfrom->fInbound? 
-                            LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target|monitor:%s:%s\n", peer.addr, pocId, peer.addrBind, ouraddrBind);
-                            g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POCCHALLENGE, poc));
+                            g_netmon->sendPoC(ppeer,poc);
                         }
                         else{ //If not fully connected, let's postpone
                             ppeer->vPocsToSend.push_back(poc);
@@ -3183,6 +3182,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
             //Update NetState
             if(g_netmon){
+                //Check pfrom's peers for this poc
                 CPeer *peer = g_netmon->getNode(pfrom->addr.ToString())->getPeer(poc.id);
                 if(peer){
                     LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer->addr);
@@ -3192,7 +3192,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     if(peer2) peer2->fVerified=true;
                     else LogPrint(BCLog::NET, "[POC] ERROR: Peer %s not found\n", peer->addr);
                     
-                    //TODO send CONFIRMPEER
+                    //TODO send CONFIRMPEER?
                 }
             }
             else LogPrint(BCLog::NET, "[POC] WARNING: POC monitor is not active\n");
@@ -3216,6 +3216,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             //! If we don't find?
             if(!ppeer){
                 LogPrint(BCLog::NET, "[POC] ERROR: not connected to target! (%s)\n", poc.target);
+                //warn the monitor?
                 return 1;
             }
 
@@ -3259,12 +3260,12 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     break;
                 }                    
             }
-            //! If we don't find it let's tell the monitor?
+            //If we didn't find it
             if(!ppeer){
                 LogPrint(BCLog::NET, "[POC] ERROR: not connected to target! (%s)\n", poc.target);
+                //TODO? tell the monitor?
                 return 1;
             }
-
 
             //CNode* ptarget = ppeer; //g_connman->FindNode(paddr);
             if(g_connman->NodeFullyConnected(ppeer)){
@@ -3732,11 +3733,28 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             //
             if(!pto->vPocsToSend.empty()){
                 for (const CPoC& poc : pto->vPocsToSend){
-                    LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target:%s|monitor:%s\n", pto->addr.ToString(),poc.id,poc.monitor,poc.target);
-                    g_connman->PushMessage(pto, msgMaker.Make(NetMsgType::POCCHALLENGE, poc));
+                    g_netmon->sendPoC(pto,poc);
+                    //sendPoC(pto, poc);
                 }
                 pto->vPocsToSend.clear();
             }
+
+            //
+            // Check POC timeout
+            //
+            CNetNode *node = g_netmon->getNode(pto->addr.ToString());
+            if(node) 
+                //For each peer, check if their poc timeout expired
+                for (const CPeer& peer : node->vPeers){ //loop through peers
+                    //check poc.timeout
+                    if(!peer.fVerified && peer.pocTimeout < nNow){
+                        std::string type("poc");
+                        CPoCAlert alert(type, peer.addr, peer.addrBind, peer.pocId);
+
+                        connman->PushMessage(pto, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));
+                    }
+                }
+            else LogPrint(BCLog::NET, "[POC] ERROR: CNetNode not found\n");
 
             //
             // Start POC update
