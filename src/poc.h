@@ -12,6 +12,12 @@
 
 class CNode;
 
+/* CPoCChallenge */
+// class CPoCChallenge
+// {
+
+// }
+
 /* CPoC */
 class CPoC
 {
@@ -20,7 +26,8 @@ public:
     std::string monitor;
     std::string target;
     //Digital Signature?
-    int64_t timeout;
+    std::atomic<int64_t> timeout{0};
+    std::string target_addr;
 
     CPoC(){
         id = 0;
@@ -28,11 +35,11 @@ public:
         target = "";
     };
 
-    CPoC(int i, const std::string& m, const std::string& t){
+    CPoC(int i, const std::string& m, const std::string& t, const std::string& ta){
         id = i;
         monitor = m;
         target = t;
-        timeout = GetTimeMicros();
+        target_addr = ta;
     };
 
     template <typename Stream>
@@ -150,13 +157,21 @@ public:
 /*POC: CNetwork*/
 class CNetNode
 {
+private:
+    CNode *cnode;
+
 public:
     std::string addr;
     std::vector<CPeer> vPeers; //TODO move CPeer info here and make vector<CNetNode> -- how to handle pocId?
 
     CNetNode(){}
-    CNetNode(std::string a){
+    CNetNode(std::string a, CNode *n){
+        cnode = n;
         addr = a;
+    }
+
+    CNode *getCNode(){
+        return cnode;
     }
 
     void addPeer(CPeer p){
@@ -181,8 +196,9 @@ public:
     }
 
     CPeer* getPeer(int pocId){
+LogPrint(BCLog::NET, "[POC] Checkpoint 01\n");
         for (CPeer& peer : vPeers){
-            //if(peer.pocId == pocId) return &peer;
+LogPrint(BCLog::NET, "[POC] Checkpoint 02\n");
             if(peer.poc->id == pocId) return &peer;
         }
         return nullptr;
@@ -218,8 +234,8 @@ private:
     std::vector<CNetNode*> vNetNodes;
 
 public:
-    CNetNode* addNode(std::string addr){
-        CNetNode *node = new CNetNode(addr);
+    CNetNode* addNode(std::string addr, CNode *cnode){
+        CNetNode *node = new CNetNode(addr, cnode);
         vNetNodes.push_back(node);
         return node;
     }

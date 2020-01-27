@@ -1,3 +1,5 @@
+
 [ ] BCLog::POC #Keep basic log as NET, and 2nd-level log as POC
-[ ] Put CNetNode * in CNode
-[ ] Put CPoC in CNetNode
+---------------------------
+[X] Put CNetNode * in CNode
+[X] Put CPoC in CNetNode
