@@ -35,6 +35,8 @@
 #include <net.h>
 #include <poc.h>
 #include <time.h>
+
+static int poc_misbehave_type = 0;
 /**/
 
 #if defined(NDEBUG)
@@ -3246,6 +3248,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             if(addr == pfrom->addr.ToString())
                 continue;
 
+            bool omit = true;
             if(omit){ //&& !stats.fInbound
                 LogPrint(BCLog::NET, "[POC] MISBEHAVE: Omit (%s,%s)\n", addr, addrBind);
                 omit = false;
@@ -3491,6 +3494,31 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
         std::string paddr;
         std::string paddrBind;
 
+        /* Misbehaving */
+        switch(poc_misbehave_type) {
+            case 0:
+                LogPrint(BCLog::NET, "[POC] NOT MISBEHAVING\n");
+                break;            
+            case 1:
+                //Modifying challenge
+                LogPrint(BCLog::NET, "[POC] MISBEHAVING: modifying poc\n");
+                poc.id = 1234;
+                break;
+            case 2:
+                //Forwarding challenge
+                LogPrint(BCLog::NET, "[POC] MISBEHAVING: forwarding poc to all\n");
+                for (const CNodeStats& stats : vstats){
+                    paddr = stats.addrName;
+                    ppeer = connman->FindNode(paddr);
+                    LogPrint(BCLog::NET, "[POC] Forwarding POC to %s\n", ppeer->addr.ToString());
+                    g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POCCHALLENGE, poc));
+                    break;
+                }
+                break;
+        }
+        
+        //Only executes the rest when not misbehaving
+        if(!poc_misbehave_type)
         /* If we are the monitor, let's confirm the peer */
         if(pfrom->addrBind.ToString() == poc.monitor){
             LogPrint(BCLog::NET, "[POC] We are the monitor\n");
@@ -3598,6 +3626,8 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
                 return 1;
             }
 
+            //Don't send if dropping or forwarding
+            if(poc_misbehave_type!=2 && poc_misbehave_type!=3)
             //CNode* ptarget = ppeer; //g_connman->FindNode(paddr);
             if(g_connman->NodeFullyConnected(ppeer)){
                 LogPrint(BCLog::NET, "[POC] Forwarding POC to target (%s)\n", ppeer->addr.ToString());
@@ -3609,7 +3639,9 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
             }
         }
         // else LogPrint(BCLog::NET, "[POC] ERROR: we received a wrong POC\n"); //?Tell the monitor?
-        
+
+        poc_misbehave_type = (poc_misbehave_type+1)%4;
+
         return true;
     }
 
