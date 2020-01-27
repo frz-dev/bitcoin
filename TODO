@@ -1,5 +1,6 @@
 
 HIGH PRIORITY
+[ ] Omit only one. Stop doing it after first one disconnected?
 [ ] Get target IP from CLI -fake
 [X] Omit peer in PEERS -- omit first peer?
 [X] Fake peer in PEERS
