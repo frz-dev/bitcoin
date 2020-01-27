@@ -6,6 +6,7 @@
 #include <vector>
 #include <logging.h>
 #include <algorithm> //remove()
+#include <time.h>
 
 #include <net.h>
 
@@ -31,7 +32,7 @@ public:
         id = i;
         monitor = m;
         target = t;
-        timeout = 0;
+        timeout = GetTimeMicros();
     };
 
     template <typename Stream>
@@ -214,24 +215,26 @@ public:
 class CNetMon
 {
 private:
-    std::vector<CNetNode> vNetNodes;
+    std::vector<CNetNode*> vNetNodes;
 
 public:
-    void addNode(std::string addr){
-        vNetNodes.push_back(CNetNode(addr));
+    CNetNode* addNode(std::string addr){
+        CNetNode *node = new CNetNode(addr);
+        vNetNodes.push_back(node);
+        return node;
     }
 
     CNetNode* getNode(std::string addr){
-        for (CNetNode& node : vNetNodes){
-            if(node.addr == addr) return &node;
+        for (auto node : vNetNodes){
+            if(node->addr == addr) return node;
         }
         return nullptr;
     }
 
     CNetNode* findInboundPeer(std::string addr){
-        for (CNetNode& node : vNetNodes){
-            for (CPeer& peer : node.vPeers)
-                if(peer.addrBind == addr) return &node;
+        for (auto node : vNetNodes){
+            for (CPeer& peer : node->vPeers)
+                if(peer.addrBind == addr) return node;
         }
 
         return nullptr;
@@ -246,9 +249,10 @@ public:
 
 
     bool removeNode(std::string a){
-        std::vector<CNetNode>::iterator it = std::find_if(vNetNodes.begin(), vNetNodes.end(), [&](CNetNode n) {return n.addr==a;});
+        std::vector<CNetNode*>::iterator it = std::find_if(vNetNodes.begin(), vNetNodes.end(), [&](CNetNode *n) {return n->addr==a;});
 
         if ( it != vNetNodes.end() ){
+            delete *it;
             vNetNodes.erase(it);
             return true;
         }
@@ -256,19 +260,20 @@ public:
         return false;
     }
 
-    void GetNodes(std::vector<CNetNode>& vnetnodes){
+    void GetNodes(std::vector<CNetNode*>& vnetnodes){
         vnetnodes.clear();
         //{
         //LOCK(cs_vNetNodes);
         vnetnodes.reserve(vNetNodes.size());
-        for (CNetNode& pnetnode : vNetNodes) {
-            vnetnodes.emplace_back();
-            pnetnode.copyNode(vnetnodes.back());
+        for (auto pnetnode : vNetNodes) {
+            // vnetnodes.emplace_back();
+            // pnetnode.copyNode(vnetnodes.back());
+            vnetnodes.push_back(pnetnode);
         }
         //}
     }
 
-    void sendPoC(CNode *pto, CPoC poc);
+    void sendPoC(CNode *pto, CPoC *poc);
 };
 /**/
 

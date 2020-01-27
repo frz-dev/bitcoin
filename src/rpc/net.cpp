@@ -244,17 +244,17 @@ static UniValue getnetnodesinfo(const JSONRPCRequest& request)
     if(!g_netmon)
         throw JSONRPCError(RPC_CLIENT_POCMON_DISABLED, "Error: POC functionality missing or disabled");
 
-    std::vector<CNetNode> vnetnodes;
+    std::vector<CNetNode*> vnetnodes;
     g_netmon->GetNodes(vnetnodes);
 
     UniValue ret(UniValue::VARR);
 
-    for (CNetNode& pnetnode : vnetnodes) {
+    for (auto pnetnode : vnetnodes) {
         UniValue onode(UniValue::VOBJ);
-        onode.pushKV("node", pnetnode.addr);
+        onode.pushKV("node", pnetnode->addr);
 
         UniValue opeers(UniValue::VARR);
-        for (CPeer& ppeer : pnetnode.vPeers) {
+        for (CPeer& ppeer : pnetnode->vPeers) {
             UniValue opeer(UniValue::VOBJ);
 
             opeer.pushKV("addr", ppeer.addr);
