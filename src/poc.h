@@ -19,6 +19,7 @@ public:
     std::string monitor;
     std::string target;
     //Digital Signature?
+    int64_t timeout;
 
     CPoC(){
         id = 0;
@@ -30,6 +31,7 @@ public:
         id = i;
         monitor = m;
         target = t;
+        timeout = 0;
     };
 
     template <typename Stream>
@@ -55,23 +57,22 @@ public:
     std::string addr;
     std::string addrBind;
     bool fInbound;
+    CPoC *poc;
     bool fVerified;
-    int pocId; //TODO: put the whole poc here
-    int64_t pocTimeout;
 
     CPeer(){
         addr = "";
         addrBind = "";
         fInbound = false;
+        poc = NULL;
         fVerified = false;
-        pocId = -1;
     };
     CPeer(std::string& a, std::string& aB, bool i){
         addr = a;
         addrBind = aB;
         fInbound = i;
+        poc = NULL;
         fVerified = false;
-        pocId = -1;
     };
     
     bool operator==(const CPeer &peer) const {
@@ -102,7 +103,6 @@ public:
         X(addrBind);
         X(fInbound);
         X(fVerified);
-        X(pocId); //?
     }
 #undef X
 };
@@ -158,6 +158,11 @@ public:
         addr = a;
     }
 
+    void addPeer(CPeer p){
+        //TODO: check for duplicates
+        vPeers.push_back(p);
+    }
+
     bool replacePeers(std::vector<CPeer> newvPeers){
         std::vector<CPeer>().swap(vPeers);
         vPeers = newvPeers;
@@ -165,10 +170,6 @@ public:
 
     bool operator==(const CNetNode &node) const {
         return this->addr == node.addr;
-    }
-
-    void addPeer(CPeer p){
-        vPeers.push_back(p);
     }
 
     CPeer* getPeer(std::string a){
@@ -180,7 +181,8 @@ public:
 
     CPeer* getPeer(int pocId){
         for (CPeer& peer : vPeers){
-            if(peer.pocId == pocId) return &peer;
+            //if(peer.pocId == pocId) return &peer;
+            if(peer.poc->id == pocId) return &peer;
         }
         return nullptr;
     }

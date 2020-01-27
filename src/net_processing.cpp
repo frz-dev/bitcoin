@@ -3310,13 +3310,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     CNode* ppeer = NULL;
 
                     //If peer is outbound
-                    if(!peer.fInbound){
-                        //Create POC    
-                        int pocId = rand() % 10000; //? get better random number?
-                        std::string ouraddrBind = pfrom->addrBind.ToString();
-                        CPoC poc(pocId, ouraddrBind, peer.addrBind);
-                        peer.pocId = pocId; //Save POC Id for verification
-                        
+                    if(!peer.fInbound){                        
                         //TODO? Cross check peer lists
                         //Retrieve node
                         //CNetNode *node = g_netmon->getNode(ppeer->addr.ToString());
@@ -3357,12 +3351,17 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                             }
                         }
 
+                        /* Send PoC */
+                        //Create POC    
+                        int pocId = rand() % 100000; //? get better random number?
+                        std::string ouraddrBind = pfrom->addrBind.ToString();
+                        CPoC poc(pocId, ouraddrBind, peer.addrBind);
+                        peer.poc = &poc; //Save POC Id for verification
+
                         //If we are fully connected, send POC
                         //TODO: check if g_connman->NodeFullyConnected(ppeer) ever returns true after OpenNetworkConnection. If not, do postpone right after connect()
-                        if(g_connman->NodeFullyConnected(ppeer)){ //TODO: mv this to separate function?
-                            //? pfrom->fInbound? 
-                            //g_netmon->sendPoC(ppeer,poc);
-                            ;
+                        if(g_connman->NodeFullyConnected(ppeer)){
+                            g_netmon->sendPoC(ppeer,poc);
                         }
                         else{ //If not fully connected, let's postpone
                             ppeer->vPocsToSend.push_back(poc);
@@ -3953,8 +3952,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             //
             if(!pto->vPocsToSend.empty()){
                 for (const CPoC& poc : pto->vPocsToSend){
-                    //g_netmon->sendPoC(pto,poc);
-                    //sendPoC(pto, poc);
+                    g_netmon->sendPoC(pto,poc);
                 }
                 pto->vPocsToSend.clear();
             }
@@ -3967,9 +3965,9 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                 //For each peer, check if their poc timeout expired
                 for (const CPeer& peer : node->vPeers){ //loop through peers
                     //check poc.timeout
-                    if(!peer.fVerified && peer.pocTimeout < nNow){
+                    if(!peer.fVerified && peer.poc->timeout < nNow){
                         std::string type("poc");
-                        CPoCAlert alert(type, peer.addr, peer.addrBind, peer.pocId);
+                        CPoCAlert alert(type, peer.addr, peer.addrBind, peer.poc->id);
 
                         connman->PushMessage(pto, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));
                     }
