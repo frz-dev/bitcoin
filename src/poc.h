@@ -15,7 +15,7 @@ class CNetNode;
 class CPeer;
 
 static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
-static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 10;
+static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 30;
 
 /* CPoC */
 class CPoC
@@ -267,6 +267,7 @@ public:
     }
 
     bool removePeer(CPeer p){
+LogPrint(BCLog::NET, "[POC] DEBUG: removing peer (%s,%s)\n",p.addr,p.addrBind);
         std::vector<CPeer>::iterator it = std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer peer) {
             return peer==p;
         });
@@ -309,10 +310,10 @@ private:
 
 public:
     CNetNode* addNode(std::string addr, CNode *cnode){
-LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
+//LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
         for(auto& node : vNetNodes)
             if(node->addr == addr){
-LogPrint(BCLog::NET, "[POC] DEBUG: duplicate addNode (%s)\n", addr);
+//LogPrint(BCLog::NET, "[POC] DEBUG: duplicate addNode (%s)\n", addr);
                 return node;
             }
 

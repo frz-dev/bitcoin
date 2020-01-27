@@ -3298,6 +3298,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
                 if(!found){
                     LogPrint(BCLog::NET, "[POC] Removing peer %s-%s\n", curpeer.addr, curpeer.addrBind);
+                    //TODO: remove from node only? and keep checking when receiving peers
                     //node->removePeer(&curpeer);
                     g_netmon->removePeer(curpeer);
 
@@ -3426,7 +3427,7 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
             }//for(CPeer& peer : vPeers)
 
             //Update peers
-            LogPrint(BCLog::NET, "[POC] Updating peers\n");
+            LogPrint(BCLog::NET, "[POC] Save peers\n");
             node->replacePeers(vPeers);
 //LogPrint(BCLog::NET, "[POC] DEBUG: Peers updated\n");
 
@@ -3436,9 +3437,9 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
                 LogPrint(BCLog::NET, "[POC] Double-checking peer %s-%s\n",pToCheck.addr,pToCheck.addrBind);
                 bool checked = false;
                 for (CPeer& peer : vPeers){
-                    LogPrint(BCLog::NET, "[POC] Double-checking: %s-%s\n",peer.addr,peer.addrBind);
+//LogPrint(BCLog::NET, "[POC] DEBUG: Double-checking: %s-%s\n",peer.addr,peer.addrBind);
 
-                    if(peer.isEqual(pToCheck)){ checked=true;}
+                    if(peer.isEqual(pToCheck)){ checked=true;break;}
                 }
                 
                 if(!checked){
@@ -3488,7 +3489,11 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
 
                 //
                 CPeer *peer = cnode->getPeer(poc.id);
-                if(peer){ //? && peer->poc->timeout > GetTimeMicros()
+                if(peer){
+                    //If we receive POC we consider
+                    int64_t delay = ((GetSystemTimeInSeconds() - peer->poc->timeout)/1000000);
+                    LogPrint(BCLog::NET, "[POC] POC arrived %d microseconds %s timeout\n", (int)delay, (delay<0)?"before":"after" );
+
                     LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer->addr);
                     peer->poc->fVerified = true;
                     peer->fVerified = true;
@@ -3622,10 +3627,10 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
         }
 
         /*If the alert is correct, then disconnect peer*/
-        if(alert.type == "poc" || alert.type == "peers"){
+        //if(alert.type == "poc" || alert.type == "peers"){
             LogPrint(BCLog::NET, "[POC] Disconnecting from node %s\n", ppeer->addr.ToString());
             ppeer->fDisconnect = true;
-        }
+        //}
         return true;
     }
     /**/
