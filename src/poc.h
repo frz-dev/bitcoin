@@ -201,9 +201,7 @@ public:
         vPeers.push_back(p);
     }
 
-    bool replacePeers(std::vector<CPeer> newvPeers){
-        // std::vector<CPeer>().swap(vPeers);
-
+    void replacePeers(std::vector<CPeer> newvPeers){
         //Keep old peer.fVerified state
         for(CPeer& newpeer : newvPeers){
             CPeer *peer = findPeer(newpeer);
