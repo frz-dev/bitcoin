@@ -230,6 +230,30 @@ extern const char *GETBLOCKTXN;
  * @since protocol version 70014 as described by BIP 152
  */
 extern const char *BLOCKTXN;
+
+/*POC*/
+/**
+ * The getpeers message requests a peers message from the receiving node,
+ * containing the list of its current peers.
+ */
+extern const char *GETPEERS;
+/**
+ * The peers message contains the full list of peers.
+ * It is sent in response to a getpeers message.
+ */
+extern const char *PEERS;
+/**
+ * The pocchallenge message is sent to a node to prove its active connections.
+ * If the receiver is the node being probed, it will forward the message to all its peers.
+ * Otherwise, it will send the message back to the prober.
+ */
+extern const char *POCCHALLENGE;
+/**
+ * The pocalert message is sent by the prober to the probed nodes.
+ * It reports an anomaly in the peerlists or an unverified peer.
+ */
+extern const char *POCALERT;
+/**/
 };
 
 /* Get a vector of all valid message types (see above) */

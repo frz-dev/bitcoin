@@ -35,6 +35,8 @@
 #include <arpa/inet.h>
 #endif
 
+#include <poc.h> /*POC*/
+class CPoC;
 
 class CScheduler;
 class CNode;
@@ -330,6 +332,16 @@ public:
     */
     int64_t PoissonNextSendInbound(int64_t now, int average_interval_seconds);
 
+        /*POC: make public*/
+    CNode* FindNode(const CNetAddr& ip);
+    CNode* FindNode(const CSubNet& subNet);
+    CNode* FindNode(const std::string& addrName);
+    CNode* FindNode(const CService& addr);
+
+    // Whether the node should be passed out in ForEach* callbacks
+    static bool NodeFullyConnected(const CNode* pnode);
+    /**/
+
 private:
     struct ListenSocket {
     public:
@@ -360,10 +372,12 @@ private:
 
     uint64_t CalculateKeyedNetGroup(const CAddress& ad) const;
 
+    /*POC
     CNode* FindNode(const CNetAddr& ip);
     CNode* FindNode(const CSubNet& subNet);
     CNode* FindNode(const std::string& addrName);
     CNode* FindNode(const CService& addr);
+    */
 
     bool AttemptToEvictConnection();
     CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool manual_connection, bool block_relay_only);
@@ -380,8 +394,10 @@ private:
     void RecordBytesRecv(uint64_t bytes);
     void RecordBytesSent(uint64_t bytes);
 
+    /*POC
     // Whether the node should be passed out in ForEach* callbacks
     static bool NodeFullyConnected(const CNode* pnode);
+    */
 
     // Network usage totals
     CCriticalSection cs_totalBytesRecv;
@@ -775,6 +791,11 @@ protected:
 public:
     uint256 hashContinue;
     std::atomic<int> nStartingHeight{-1};
+
+    /*POC*/
+    std::vector<CPoC> vPocsToSend;
+    int64_t nNextPocUpdate {0}; //GUARDED_BY(cs_sendProcessing){0};
+    /**/
 
     // flood relay
     std::vector<CAddress> vAddrToSend;
