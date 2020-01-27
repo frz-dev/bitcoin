@@ -3545,18 +3545,18 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
             }
         }
         /* If we are not the target nor the monitor, forward to the target */
-        else{
+        else {
             // Check if we are monitor or target but received the POC from someone else
             for (const CNodeStats& stats : vstats){
                 paddr = stats.addrName;
                 paddrBind = stats.addrBind.ToString();
 
                 if(paddrBind == poc.monitor){
-                    LogPrint(BCLog::NET, "[POC] We are the monitor, but we didn't receive from target!\n");
+                    LogPrint(BCLog::NET, "[POC] WARNING MISBEHAVIOR: We are the monitor, but we didn't receive from target!\n");
                     return 1;
                 }
                 if(paddrBind == poc.target){
-                    LogPrint(BCLog::NET, "[POC] We are the target, but we didn't receive from the right peer!\n");
+                    LogPrint(BCLog::NET, "[POC] WARNING MISBEHAVIOR: We are the target, but we didn't receive from the right peer!\n");
                     return 1;
                 }
             }
@@ -3576,7 +3576,7 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
             }
             //If we didn't find it
             if(!ppeer){
-                LogPrint(BCLog::NET, "[POC] ERROR: not connected to target! (%s)\n", poc.target);
+                LogPrint(BCLog::NET, "[POC] ERROR (MISBEHAVE?): not connected to target! (%s)\n", poc.target);
                 //TODO? tell the monitor?
                 return 1;
             }
@@ -3591,7 +3591,6 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
                 //? -- report to the monitor?
             }
         }
-        // else LogPrint(BCLog::NET, "[POC] ERROR: we received a wrong POC\n"); //?Tell the monitor?
         
         return true;
     }
