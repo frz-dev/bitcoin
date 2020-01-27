@@ -4058,7 +4058,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                         }
                     }
                     else{
-                        if(peer.fInbound && peer.timeout!=0 && peer.timeout < nNow){
+                        if(peer.fInbound && peer.timeout!=0 && peer.timeout < nNow){ //be sure to set symmetric as verified
                             //Send ALERT
                             LogPrint(BCLog::NET, "[POC] max verification time timeout expired, sending ALERT\n");
 
