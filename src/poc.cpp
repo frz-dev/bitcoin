@@ -19,14 +19,13 @@ void CNetMon::sendPoC(CNode *pto, CPoC *poc){
 
     //Set timeout
     if(pto->nPingUsecTime+pfrom->nPingUsecTime <= 0) 
-        poc->timeout = PoissonNextSend(nNow, 30);
+        poc->timeout = nNow + MAX_VERIFICATION_TIMEOUT;
     else
         poc->timeout = nNow+((pto->nPingUsecTime+pfrom->nPingUsecTime)*3);
 
-    //TODO check NodeFullyConnected
-    // if(g_connman->NodeFullyConnected(ppeer)){
-    //                     g_netmon->sendPoC(ppeer,poc);
-    //                 }
+    //TODO: peer.timeout = poc.timeout
+    CPeer *peer = pfrom->netNode->getPeer(poc->id);
+    if(peer) peer->timeout = poc->timeout;
 
     //Send POC
     LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target:%s|monitor:%s\n", pto->addr.ToString(),poc->id,poc->target,poc->monitor);
@@ -35,6 +34,8 @@ void CNetMon::sendPoC(CNode *pto, CPoC *poc){
 
 /* sendAlert */
 void CNetMon::sendAlert(CPeer *peer, std::string type){
+    if(!peer){ LogPrint(BCLog::NET, "[POC] ERROR !peer\n"); return;}
+
     CPoCAlert alert(type, peer->addr, peer->addrBind);
 
     LogPrint(BCLog::NET, "[POC] Sending \"ALERT\": type=%s, a1=%s, a2=%s\n", alert.type, alert.addr1, alert.addr2);
@@ -48,20 +49,25 @@ void CNetMon::sendAlert(CPeer *peer, std::string type){
         pA = g_connman->FindNode(peer->addr);
     if(pA){
         LogPrint(BCLog::NET, "[POC] Sending \"ALERT\" to %s\n", pA->addr.ToString());
-        g_connman->PushMessage(pA, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));
-        
-        //Remove peer
-        pA->netNode->removePeer(peer);
+        g_connman->PushMessage(pA, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));    
+
+        //TODO? : it crashes
+        // CNetNode *pAn = pA->netNode;
+        // if(pAn)
+        //     pAn->removePeer(peer);
+
     }
 
     //Send to node B (if connected)
     CNetNode *pBn = g_netmon->getNode(peer->addr);
     if(pBn){
         CNode *pB = pBn->getCNode();
-        LogPrint(BCLog::NET, "[POC] Sending \"ALERT\" to %s\n", pB->addr.ToString());
-        g_connman->PushMessage(pB, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));
-        
-        pBn->removePeer(peer);
+        if(pB){
+            LogPrint(BCLog::NET, "[POC] Sending \"ALERT\" to %s\n", pB->addr.ToString());
+            g_connman->PushMessage(pB, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));
+        }
+        //TODO? : it crashes
+        // pBn->removePeer(peer);
     }
 
     //TODO: decrease reputation of nodes that keep claiming unverified connections

@@ -1,6 +1,8 @@
 
 HIGH PRIORITY
+[ ] unverified (timeout)
 [ ] TODO12
+[ ] TODO22
 [ ] Add CPeer*p1,p2 in CPoC
 [ ] Update nodes after sending Alert
 [ ] Only save outbound peers ? - return only outbound in topology?
