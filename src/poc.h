@@ -320,5 +320,6 @@ public:
 /**/
 
 extern std::unique_ptr<CNetMon> g_netmon;
+extern std::unique_ptr<std::string> g_fakepeer;
 
 #endif // BITCOIN_POC_H

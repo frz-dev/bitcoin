@@ -91,6 +91,7 @@ std::unique_ptr<PeerLogicValidation> peerLogic;
 std::unique_ptr<BanMan> g_banman;
 /*POC*/
 std::unique_ptr<CNetMon> g_netmon;
+std::unique_ptr<std::string> g_fakepeer;
 /**/
 
 #ifdef WIN32
@@ -547,6 +548,7 @@ void SetupServerArgs()
 
     /*POC*/
     gArgs.AddArg("-pocmon", strprintf("Enable POC monitor mode"), ArgsManager::ALLOW_BOOL, OptionsCategory::OPTIONS);
+    gArgs.AddArg("-fakepeer=<addr>", strprintf("Fake peer"), ArgsManager::ALLOW_STRING, OptionsCategory::OPTIONS);
     /**/   
 
 #if HAVE_DECL_DAEMON
@@ -1824,6 +1826,12 @@ bool AppInitMain(InitInterfaces& interfaces)
     if (!g_connman->Start(scheduler, connOptions)) {
         return false;
     }
+
+    /*POC*/
+    std::string default_fp("127.0.0.1:5555");
+    std::string fp = gArgs.GetArg("-fakepeer", default_fp);
+    g_fakepeer = std::unique_ptr<std::string>(new std::string(fp));
+    /**/
 
     // ********************************************************* Step 13: finished
 

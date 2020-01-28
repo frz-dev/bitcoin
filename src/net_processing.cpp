@@ -3234,6 +3234,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         
         LogPrint(BCLog::NET, "[POC] Sending PEERS:\n");
         std::vector<CPeer> vPeers;
+        bool omit=true;
         for (const CNodeStats& stats : vstats){
             std::string addr = stats.addr.ToString();
             std::string addrBind = stats.addrBind.ToString();
@@ -3242,10 +3243,26 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             if(addr == pfrom->addr.ToString())
                 break;
 
+            if(omit && !stats.fInbound){
+                LogPrint(BCLog::NET, "[POC] MISBEHAVE: Omit (%s,%s)\n", addr, addrBind);
+                omit = false;
+                break;
+            }
+
             CPeer peer(addr,addrBind,stats.fInbound);
             vPeers.push_back(peer);
             LogPrint(BCLog::NET, "[POC] - addr=%s|addrBind=%s|%s\n", peer.addr, peer.addrBind, peer.fInbound?"inbound":"outbound");
         }
+
+        //TODO: fake peer
+        std::string *fp = g_fakepeer.get();
+        std::string fakeaddr(*fp+":5555");
+        std::string ouraddr = pfrom->addrBind.ToStringIP();
+        std::string fakeaddrBind(ouraddr+":1234");
+        LogPrint(BCLog::NET, "[POC] MISBEHAVE: Fake (%s,%s)\n", fakeaddr, fakeaddrBind);
+        CPeer fakepeer(fakeaddr,fakeaddrBind,false);
+        vPeers.push_back(fakepeer);
+
 
         //Send 'peers' message
         connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::PEERS, vPeers));
