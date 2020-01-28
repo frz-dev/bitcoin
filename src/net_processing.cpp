@@ -3372,11 +3372,14 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         }
                     }
                     else{ //If inbound, check if we already verified it
+                    //TODO: do we need this?
                         CNetNode *n = g_netmon->findInboundPeer(peer.addr); //TODO: check among pfrom's peers
                         if(n){
                             CPeer *p = n->getPeer(peer.addrBind);
-                            if(p)
+                            if(p){
                                 peer.fVerified = p->fVerified;
+                                peer.poc = p->poc;
+                            }
                         }
                         //TODO else?
                         // We can check the IP. If public it corresponds to one node only
@@ -3416,19 +3419,23 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             //Update NetState
             if(g_netmon){
                 //Check pfrom's peers for this poc
-                CNetNode *cnode = pfrom->netNode; //g_netmon->getNode(pfrom->addr.ToString());
+                CNetNode *cnode = pfrom->netNode;
                 // if(!cnode){
                 //     LogPrint(BCLog::NET, "[POC] ERROR: pfrom netnode not found\n");
                 //     return false;
                 // }
 
+                //
                 CPeer *peer = cnode->getPeer(poc.id);
                 if(peer){
                     LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer->addr);
+                    peer->poc->fVerified = true;
                     peer->fVerified = true;
 
+                    //Check inbound peer as verified too
                     CPeer *peer2 = g_netmon->getNode(peer->addr)->getPeer(peer->addrBind);
-                    if(peer2) peer2->fVerified=true;
+                    if(peer2)
+                        peer2->fVerified=true;
                     else LogPrint(BCLog::NET, "[POC] ERROR: Peer %s not found\n", peer->addr);
                     
                     //TODO send CONFIRMPEER?
@@ -3971,10 +3978,14 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             CNetNode *node = pto->netNode;
             if(node){
                 //For each peer, check if their poc timeout expired
-                for (const CPeer& peer : node->vPeers){ //loop through peers
+                for (CPeer& peer : node->vPeers){ //loop through peers
                     //Check if poc timeout expired
-                    //if(!peer.fInbound && !peer.fVerified && peer.poc->timeout < nNow){
-                    if(false){
+                    if(!peer.fInbound && !peer.poc->fVerified && peer.poc->timeout < nNow){
+                    //if(false){
+                        //Set fVerified = false;
+                        peer.fVerified = false;
+
+                        //Send ALERT
                         LogPrint(BCLog::NET, "[POC] poc timeout expired, sending ALERT\n");
                         std::string type("poc");
                         CPoCAlert alert(type, peer.addr, peer.addrBind, peer.poc->id);
