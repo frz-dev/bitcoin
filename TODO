@@ -1,9 +1,15 @@
 
 HIGH PRIORITY
+[ ] Only save outbound peers ? - return only outbound in topology?
+[ ] Put CNetNode in CPeer
+[ ] Delete CNetNode if node disconnects
+[ ] Move cross-check to beginning of recv(PEERS):
+    - findPeer(peer.IP) #This only works when IPs are different
+    - 2 public nodes can run on the same IP. we cannot assume we know the node by knowing the base IP
 [ ] Delete disconnected nodes? - maybe we just losed connection. check if it's anyone's peer
 [X] When poc expires, stop checking it!!
     - [ ] Delete it?
-[ ] Eliminate inbound peers from peerlist ?
+[ ] ? Eliminate inbound peers from peerlist ?
 [ ] If we receive an inbound peer, check if we tried poc and failed. if so report to node
 
 LOW PRIORITY
