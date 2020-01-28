@@ -3234,7 +3234,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         
         LogPrint(BCLog::NET, "[POC] Sending PEERS:\n");
         std::vector<CPeer> vPeers;
-        bool omit=true;
+        bool omit = true;
         for (const CNodeStats& stats : vstats){
             std::string addr = stats.addr.ToString();
             std::string addrBind = stats.addrBind.ToString();
@@ -3243,7 +3243,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             if(addr == pfrom->addr.ToString())
                 break;
 
-            if(omit && !stats.fInbound){
+            if(omit){ //&& !stats.fInbound
                 LogPrint(BCLog::NET, "[POC] MISBEHAVE: Omit (%s,%s)\n", addr, addrBind);
                 omit = false;
                 break;
@@ -3256,7 +3256,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         //TODO: fake peer
         std::string *fp = g_fakepeer.get();
-        std::string fakeaddr(*fp+":5555");
+        std::string fakeaddr(*fp);
         std::string ouraddr = pfrom->addrBind.ToStringIP();
         std::string fakeaddrBind(ouraddr+":1234");
         LogPrint(BCLog::NET, "[POC] MISBEHAVE: Fake (%s,%s)\n", fakeaddr, fakeaddrBind);
@@ -3332,12 +3332,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     CNode* ppeer = NULL;
 
                     //If peer is outbound
-                    if(!peer.fInbound){
-                        //TODO? Cross check peer lists
-                        //Retrieve node
-                        //CNetNode *node = g_netmon->getNode(ppeer->addr.ToString());
-
-                        //TODO: check here if we are connected. If so, we already received their peers. So let's cross check it!
+                    if(!peer.fInbound){                       
                         /* Check if we are connected to this peer */
                         for (const CNodeStats& stats : vstats){
                             bool fInbound = stats.fInbound;
@@ -3370,6 +3365,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                                 return false;
                             }
                         }
+
+                        /* Cross-check PEERS */
+                        //TODO: check here if we are connected. If so, we already received their peers. So let's cross check it!
+                        //Retrieve node
+                        CNetNode *npeer = ppeer->netNode;
 
                         /* Send PoC */
                         //Create POC    
@@ -4008,6 +4008,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                         std::string type("poc");
                         CPoCAlert alert(type, peer.addr, peer.addrBind, peer.poc->id);
 
+                        LogPrint(BCLog::NET, "[POC] Sending \"ALERT\": type=%s, a1=%s, a2=%s, pocId=%d\n", alert.type, alert.addr1, alert.addr2, alert.pocId);
                         connman->PushMessage(pto, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));
 
                         //Set fVerified = false;

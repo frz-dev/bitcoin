@@ -1828,7 +1828,7 @@ bool AppInitMain(InitInterfaces& interfaces)
     }
 
     /*POC*/
-    std::string default_fp("127.0.0.1:5555");
+    std::string default_fp("127.0.0.1:1910");
     std::string fp = gArgs.GetArg("-fakepeer", default_fp);
     g_fakepeer = std::unique_ptr<std::string>(new std::string(fp));
     /**/
