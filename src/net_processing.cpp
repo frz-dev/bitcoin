@@ -3427,7 +3427,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
                 //
                 CPeer *peer = cnode->getPeer(poc.id);
-                if(peer){
+                if(peer && peer->poc->timeout >= GetTimeMicros()){
                     LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer->addr);
                     peer->poc->fVerified = true;
                     peer->fVerified = true;
@@ -3979,18 +3979,23 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             if(node){
                 //For each peer, check if their poc timeout expired
                 for (CPeer& peer : node->vPeers){ //loop through peers
-                    //Check if poc timeout expired
-                    if(!peer.fInbound && !peer.poc->fVerified && peer.poc->timeout < nNow){
-                    //if(false){
-                        //Set fVerified = false;
-                        peer.fVerified = false;
+                //std::vector<CPeer>::iterator it;
+                //for (CPeer it = node->vPeers.begin(); it != node->vPeers.end(); ++it) {
+                //= std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer p) {return p.addr==a;});
+                    //CPeer *peer = &(*it);
 
+                    //Check if poc timeout expired
+                    if(!peer.fInbound && !peer.poc->fExpired && !peer.poc->fVerified && peer.poc->timeout < nNow){
                         //Send ALERT
                         LogPrint(BCLog::NET, "[POC] poc timeout expired, sending ALERT\n");
                         std::string type("poc");
                         CPoCAlert alert(type, peer.addr, peer.addrBind, peer.poc->id);
 
                         connman->PushMessage(pto, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));
+
+                        //Set fVerified = false;
+                        peer.poc->fExpired = true;
+                        peer.fVerified = false;
                     }
                 }
             }

@@ -17,5 +17,5 @@ void CNetMon::sendPoC(CNode *pto, CPoC *poc){
     g_connman->PushMessage(pto, msgMaker.Make(NetMsgType::POCCHALLENGE, *poc));
 
     //Set timeout
-    poc->timeout = GetTimeMicros()+((pfrom->nPingUsecTime + pto->nPingUsecTime)); //TODO: get pingtime in PEERS and add it to timeout
+    poc->timeout = GetTimeMicros()+((pfrom->nPingUsecTime + pto->nPingUsecTime)*3); //TODO: get pingtime in PEERS and add it to timeout
 }

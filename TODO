@@ -1,10 +1,13 @@
 
 HIGH PRIORITY
-[X] fVerified = false when POC fails
+[ ] Delete disconnected nodes? - maybe we just losed connection. check if it's anyone's peer
+[X] When poc expires, stop checking it!!
+    - [ ] Delete it?
 [ ] Eliminate inbound peers from peerlist ?
 [ ] If we receive an inbound peer, check if we tried poc and failed. if so report to node
 
 LOW PRIORITY
+[ ] Replace nNow with current_time
 [ ] BCLog::POC #Keep basic log as NET, and 2nd-level log as POC
 [ ] Create a POC list to quickly find a POC when receiving it back
 
@@ -14,3 +17,4 @@ LOW PRIORITY
 [X] When starting new round, don't set peer as unverified if they already are
  |
  -- [X] Check when !fVerified is used
+[X] fVerified = false when POC fails
