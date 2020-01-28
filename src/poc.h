@@ -15,7 +15,7 @@ class CNetNode;
 class CPeer;
 
 static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
-static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 5;
+static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 5000000;
 
 /* CPoC */
 class CPoC
@@ -67,7 +67,7 @@ public:
     std::string addrBind;
     bool fInbound;
     CPoC *poc;
-    bool fVerified;
+    bool fVerified{false};
     CNetNode *node;
     int64_t timeout{0};
 
@@ -76,14 +76,12 @@ public:
         addrBind = "";
         fInbound = false;
         poc = NULL;
-        fVerified = false;
     };
     CPeer(std::string& a, std::string& aB, bool i){
         addr = a;
         addrBind = aB;
         fInbound = i;
         poc = NULL;
-        fVerified = false;
         node = NULL;
     };
     

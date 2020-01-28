@@ -38,12 +38,12 @@ LogPrint(BCLog::NET, "[POC] DEBUG: ping (microsecs):%d\n", (int)(ping));
 
     if(ping == 0){
 LogPrint(BCLog::NET, "[POC] DEBUG: ping is 0, setting to MAX\n");
-        poc->timeout = nNow+(MAX_VERIFICATION_TIMEOUT*1000000);
+        poc->timeout = nNow+MAX_VERIFICATION_TIMEOUT;
         }
     else
         poc->timeout = nNow+(ping*6);
 
-LogPrint(BCLog::NET, "[POC] DEBUG: timeout (microsecs):%d (MAX:%d)\n", (int)((poc->timeout-nNow)),(int)(MAX_VERIFICATION_TIMEOUT*1000000));
+LogPrint(BCLog::NET, "[POC] DEBUG: timeout (microsecs):%d (MAX:%d)\n", (int)((poc->timeout-nNow)),(int)(MAX_VERIFICATION_TIMEOUT));
 
     //Send POC
     LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target:%s|monitor:%s\n", pto->addr.ToString(),poc->id,poc->target,poc->monitor);

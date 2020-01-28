@@ -3323,9 +3323,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
                 //Set max verification timeout
                 //TODO22: get ping time from pfrom and use it to set timeout
-                int64_t tNow = GetTime();
+                //int64_t tNow = GetTime();
                 int64_t nNow = GetTimeMicros();
-                peer.timeout = nNow + MAX_VERIFICATION_TIMEOUT*1000000;
+                peer.timeout = nNow + MAX_VERIFICATION_TIMEOUT;
 
                 /* inbound */
                 if(peer.fInbound){                   
@@ -3480,10 +3480,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 if(peer){
                     //If we receive POC we consider
                     int64_t nNow = GetTimeMicros();
-                    int64_t delay = (nNow - peer->poc->timeout);
-                    LogPrint(BCLog::NET, "[POC] POC arrived %d microseconds %s timeout\n", (int)delay, (delay<0)?"before":"after" );
+                    int64_t delay = (peer->poc->timeout - nNow);
+                    LogPrint(BCLog::NET, "[POC] POC arrived %d microseconds %s timeout\n", (int)delay, (delay>0)?"before":"after" );
 
-                    LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer->addr);
+                    LogPrint(BCLog::NET, "[POC] VERIFIED %s->%s(%s)\n", pfrom->addr.ToString(), peer->addr, peer->addrBind);
                     peer->poc->fVerified = true;
                     peer->fVerified = true;
 
@@ -4035,7 +4035,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             //
             CNetNode *node = pto->netNode;
             if(node){
-                int64_t tNow = GetTime();
+                //int64_t tNow = GetTime();
                 nNow = GetTimeMicros();
 
                 //For each peer, check if their poc timeout expired
@@ -4049,12 +4049,11 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                         g_netmon->sendAlert(&peer, type);
 
                         //Set fVerified = false;
-                        //peer.poc->fExpired = true;
                         peer.poc->timeout = 0;
                         peer.fVerified = false;
                     }
                     else{
-                        if(!peer.fVerified && peer.timeout!=0 && peer.timeout<nNow){ //be sure to set symmetric as verified
+                        if(!peer.fVerified && peer.timeout!=0 && peer.timeout<nNow){
                             //Send ALERT
                             LogPrint(BCLog::NET, "[POC] verification time timeout expired: %s, sending ALERT\n", peer.addr);
 
