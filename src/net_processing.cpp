@@ -3425,9 +3425,10 @@ LogPrint(BCLog::NET, "[POC] Checkpoint 1\n");
                 CPeer *peer = cnode->getPeer(poc.id);
 LogPrint(BCLog::NET, "[POC] Checkpoint 2\n");
                 if(peer){
+LogPrint(BCLog::NET, "[POC] Checkpoint 2a\n");
                     LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer->addr);
                     peer->fVerified = true;
-
+LogPrint(BCLog::NET, "[POC] Checkpoint 2b\n");
                     CPeer *peer2 = g_netmon->getNode(peer->addr)->getPeer(peer->addrBind);
                     if(peer2) peer2->fVerified=true;
                     else LogPrint(BCLog::NET, "[POC] ERROR: Peer %s not found\n", peer->addr);

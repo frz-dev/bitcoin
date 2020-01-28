@@ -197,10 +197,13 @@ public:
 
     CPeer* getPeer(int pocId){
 LogPrint(BCLog::NET, "[POC] Checkpoint 01\n");
-        for (CPeer& peer : vPeers){
+        for (auto peer : vPeers){
 LogPrint(BCLog::NET, "[POC] Checkpoint 02\n");
-            if(peer.poc->id == pocId) return &peer;
+            if(peer.poc && peer.poc->id == pocId){ 
+LogPrint(BCLog::NET, "[POC] Checkpoint 03 - %d %s\n", peer.poc->id, peer.addr);                
+                return &peer;}
         }
+        LogPrint(BCLog::NET, "[POC] Checkpoint 03\n");
         return nullptr;
     }
 
