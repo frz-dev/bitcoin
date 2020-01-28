@@ -84,7 +84,7 @@ public:
     };
     
     bool operator==(const CPeer &peer) const {
-        return this->addr == peer.addr;
+        return (this->addr == peer.addr) && (this->addrBind == peer.addrBind) && (this->fInbound == peer.fInbound);
     }
 
     template <typename Stream>
@@ -162,7 +162,8 @@ private:
 
 public:
     std::string addr;
-    std::vector<CPeer> vPeers; //TODO move CPeer info here and make vector<CNetNode> -- how to handle pocId?
+    std::vector<CPeer> vPeers; //TODO: CPeer *
+    //TODO move CPeer info here and make vector<CNetNode> -- how to handle pocId?
 
     CNetNode(){}
     CNetNode(std::string a, CNode *n){
@@ -180,7 +181,16 @@ public:
     }
 
     bool replacePeers(std::vector<CPeer> newvPeers){
-        std::vector<CPeer>().swap(vPeers);
+        // std::vector<CPeer>().swap(vPeers);
+
+        //Keep old peer.fVerified state
+        for(CPeer& newpeer : newvPeers){
+            CPeer *peer = findPeer(newpeer);
+            if(peer)
+                newpeer.fVerified = peer->fVerified;
+        }
+
+        //? delete vPeers;
         vPeers = newvPeers;
     }
 
@@ -188,7 +198,15 @@ public:
         return this->addr == node.addr;
     }
 
-    CPeer* getPeer(std::string a){
+
+    CPeer* findPeer(CPeer p){
+        for (CPeer& peer : vPeers){
+            if(peer == p) return &peer;
+        }
+        return nullptr;
+    }
+
+    CPeer* getPeer(std::string a){ //TODO: This should per per (addr,addrBind)
         for (CPeer& peer : vPeers){
             if(peer.addr == a) return &peer;
         }
@@ -196,14 +214,11 @@ public:
     }
 
     CPeer* getPeer(int pocId){
-LogPrint(BCLog::NET, "[POC] Checkpoint 01\n");
-        for (auto peer : vPeers){
-LogPrint(BCLog::NET, "[POC] Checkpoint 02\n");
-            if(peer.poc && peer.poc->id == pocId){ 
-LogPrint(BCLog::NET, "[POC] Checkpoint 03 - %d %s\n", peer.poc->id, peer.addr);                
-                return &peer;}
+        for (CPeer& peer : vPeers){
+            if(peer.poc && peer.poc->id == pocId) 
+                return &peer;
         }
-        LogPrint(BCLog::NET, "[POC] Checkpoint 03\n");
+
         return nullptr;
     }
 

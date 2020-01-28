@@ -1,5 +1,14 @@
 
+HIGH PRIORITY
+[ ] fVerified = false is POC fails
+[ ] When starting new round, don't set peer as unverified if they already are
+ |
+ -- [ ] Check when !fVerified is used
+
+LOW PRIORITY
 [ ] BCLog::POC #Keep basic log as NET, and 2nd-level log as POC
+[ ] Create a POC list to quickly find a POC when receiving it back
+
 ---------------------------
 [X] Put CNetNode * in CNode
 [X] Put CPoC in CNetNode
