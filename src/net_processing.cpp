@@ -3413,6 +3413,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         ppeer->netNode->vPeersToCheck.push_back(peer);
                     }                    
 
+                    //TODO12: add symmetric
+
                     /* Send POC */
                     //TODO: check if g_connman->NodeFullyConnected(ppeer) ever returns true after OpenNetworkConnection. If not, do postpone only after connect()
                     if(g_connman->NodeFullyConnected(ppeer)){
