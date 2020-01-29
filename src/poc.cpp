@@ -41,11 +41,19 @@ void CNetMon::sendAlert(CPeer *peer, std::string type){
     }
 }
 
-CNode* CNetMon::connectNode(CPeer *peer){
-    /* Connect to peer */
+CNode * CNetMon::connectNode(std::string addr){
+    LogPrint(BCLog::NET, "[POC] Connecting to: %s\n", addr.c_str());
+
     CAddress paddr(CService(), NODE_NONE);
-    g_connman->OpenNetworkConnection(paddr, false, nullptr, peer->addr.c_str(), false, false, true);
-    CNode *ppeer = g_connman->FindNode(peer->addr);
+    g_connman->OpenNetworkConnection(paddr, false, nullptr, addr.c_str(), false, false, true);
+    return g_connman->FindNode(addr);
+}
+
+CNode* CNetMon::connectNode(CPeer *peer){
+    if(peer->fInbound) return NULL;
+
+    /* Connect to peer */
+    CNode *ppeer = connectNode(peer->addr);
 
     //If we can't connect, send ALERT
     if(!ppeer){

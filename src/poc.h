@@ -329,6 +329,7 @@ public:
 
     void sendPoC(CNode *pto, CPoC *poc);
     void sendAlert(CPeer *peer, std::string type);
+    CNode* connectNode(std::string addr);
     CNode* connectNode(CPeer *peer);
 };
 /**/

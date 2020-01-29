@@ -16,6 +16,7 @@ LOW PRIORITY
 [ ] Replace nNow with current_time
 [ ] BCLog::POC #Keep basic log as NET, and 2nd-level log as POC
 [ ] Create a POC list to quickly find a POC when receiving it back
+[ ] Optimization: keep sending poc on verified connections; peers only send new peers
 
 ---------------------------
 [X] Put CNetNode * in CNode
