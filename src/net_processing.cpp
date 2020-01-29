@@ -121,7 +121,7 @@ static constexpr unsigned int MAX_FEEFILTER_CHANGE_DELAY = 5 * 60;
 
 /*POC*/
 /** Average delay between peer address broadcasts in seconds. */
-static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
+//static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
 /**/
 
 // Internal stuff
@@ -3379,6 +3379,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     if(nnode){
                         //Set CNode
                         ppeer = nnode->getCNode();
+                        if(!ppeer) LogPrint(BCLog::NET, "[POC] ERROR: !ppeer\n");
 
                         //If don't know this peer, let's add it to the double-check list
                         if(!npeer){
@@ -3391,11 +3392,13 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     else{
                         LogPrint(BCLog::NET, "[POC] %s not connected. Opening new connection\n", peer.addr);
 
-                        // /* Connect to peer */
+                        /* Connect to peer */
                         ppeer = g_netmon->connectNode(&peer);
                         if(!ppeer) break;
                         ppeer->netNode = g_netmon->addNode(ppeer->addr.ToString(), ppeer);
-
+                        // CPeer p2(peer.addrBind,peer.addr,!peer.fInbound);
+                        // p2.poc = peer.poc;
+                        // ppeer->netNode->addPeer(p2);
                         ppeer->netNode->vPeersToCheck.push_back(peer);
                     }                    
 
@@ -3451,9 +3454,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
                 //
                 CPeer *peer = cnode->getPeer(poc.id);
-if(peer) LogPrint(BCLog::NET, "[POC] cnode:%s, peer: %s\n", cnode->addr.c_str(), peer->addr.c_str());
-else LogPrint(BCLog::NET, "[POC] !peer\n"); 
-                if(peer){ //&& peer->poc->timeout > GetTimeMicros()
+                if(peer){ //? && peer->poc->timeout > GetTimeMicros()
                     LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer->addr);
                     peer->poc->fVerified = true;
                     peer->fVerified = true;

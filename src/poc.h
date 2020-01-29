@@ -14,6 +14,8 @@ class CNode;
 class CNetNode;
 class CPeer;
 
+static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
+
 /* CPoC */
 class CPoC
 {

@@ -9,18 +9,24 @@ class CNetMsgMaker;
 class CAddress;
 
 void CNetMon::sendPoC(CNode *pto, CPoC *poc){
+    int64_t nNow = GetTimeMicros();
     const CNetMsgMaker msgMaker(pto->GetSendVersion());
     //TODO? create poc here?
 
     CNode* pfrom = g_netmon->getNode(poc->target_addr)->getCNode();
     if(!pfrom){ LogPrint(BCLog::NET, "[POC] WARNING: pfrom not found\n"); return;} //TODO: return false
 
+    //Set timeout
+    if(pto->nPingUsecTime+pfrom->nPingUsecTime <= 0) 
+        poc->timeout = PoissonNextSend(nNow, AVG_POC_UPDATE_INTERVAL);
+    else
+        poc->timeout = nNow+((pto->nPingUsecTime+pfrom->nPingUsecTime)*10);
+
     //Send POC
     LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target:%s|monitor:%s\n", pto->addr.ToString(),poc->id,poc->target,poc->monitor);
     g_connman->PushMessage(pto, msgMaker.Make(NetMsgType::POCCHALLENGE, *poc));
 
-    //Set timeout
-    poc->timeout = GetTimeMicros()+((pfrom->nPingUsecTime + pto->nPingUsecTime)*4); //TODO: get pingtime in PEERS and add it to timeout
+    
 }
 
 void CNetMon::sendAlert(CPeer *peer, std::string type){
