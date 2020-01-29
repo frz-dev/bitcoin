@@ -9,18 +9,18 @@ class CNetMsgMaker;
 class CAddress;
 
 void CNetMon::sendPoC(CNode *pto, CPoC *poc){
-    //const CNetMsgMaker msgMaker(pto->GetSendVersion());
+    const CNetMsgMaker msgMaker(pto->GetSendVersion());
     //TODO? create poc here?
 
     CNode* pfrom = g_netmon->getNode(poc->target_addr)->getCNode();
     if(!pfrom){ LogPrint(BCLog::NET, "[POC] WARNING: pfrom not found\n"); return;} //TODO: return false
 
     //Send POC
-    LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target:%s|monitor:%s\n", pto->addr.ToString(),poc->id,poc->monitor,poc->target);
-    g_connman->PushMessage(pto, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCCHALLENGE, *poc));
+    LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target:%s|monitor:%s\n", pto->addr.ToString(),poc->id,poc->target,poc->monitor);
+    g_connman->PushMessage(pto, msgMaker.Make(NetMsgType::POCCHALLENGE, *poc));
 
     //Set timeout
-    poc->timeout = GetTimeMicros()+((pfrom->nPingUsecTime + pto->nPingUsecTime)*3); //TODO: get pingtime in PEERS and add it to timeout
+    poc->timeout = GetTimeMicros()+((pfrom->nPingUsecTime + pto->nPingUsecTime)*4); //TODO: get pingtime in PEERS and add it to timeout
 }
 
 void CNetMon::sendAlert(CPeer *peer, std::string type){

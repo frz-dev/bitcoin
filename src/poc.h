@@ -88,6 +88,10 @@ public:
         return (this->addr == peer.addr) && (this->addrBind == peer.addrBind) && (this->fInbound == peer.fInbound);
     }
 
+    bool isEqual(const CPeer &peer) const {
+        return (this->addr == peer.addrBind) && (this->addrBind == peer.addr) && (this->fInbound == !peer.fInbound);
+    }
+
     template <typename Stream>
     void Serialize(Stream& s) const {
         s << addr
@@ -209,7 +213,7 @@ public:
 
     CPeer* findPeer(CPeer p){
         for (CPeer& peer : vPeers){
-            if(peer == p) return &peer;
+            if(peer == p || peer.isEqual(p)) return &peer;
         }
         return nullptr;
     }
@@ -292,7 +296,7 @@ public:
     CPeer* findPeer(CPeer *p){
         for (auto node : vNetNodes){
             for (CPeer& peer : node->vPeers){
-                if(peer.addrBind==p->addr && peer.addr==p->addrBind && peer.fInbound==!p->fInbound) 
+                if(peer.addr==p->addr && peer.addrBind==p->addrBind && peer.fInbound==p->fInbound) 
                     return &peer;
             }
                 
@@ -301,6 +305,17 @@ public:
         return nullptr;
     }
 
+    CPeer* findPeer2(CPeer *p){
+        for (auto node : vNetNodes){
+            for (CPeer& peer : node->vPeers){
+                if(peer.addrBind==p->addr && peer.addr==p->addrBind && peer.fInbound==!p->fInbound) 
+                    return &peer;
+            }
+                
+        }
+
+        return nullptr;
+    }
 
     bool removeNode(std::string a){
         std::vector<CNetNode*>::iterator it = std::find_if(vNetNodes.begin(), vNetNodes.end(), [&](CNetNode *n) {return n->addr==a;});

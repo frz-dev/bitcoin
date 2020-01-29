@@ -2065,7 +2065,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     pfrom->netNode = g_netmon->addNode(pfrom->addr.ToString(), pfrom);
                 }
 
+                //TODO? just start with update? (don't set it here, so it starts as 0)
                 connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETPEERS));
+                pfrom->nNextPocUpdate = PoissonNextSend(GetTimeMicros(), AVG_POC_UPDATE_INTERVAL);
             }
             else LogPrint(BCLog::NET, "[POC]: Client mismatch: pfrom=%s , strSubVersion=%s\n",pfrom->cleanSubVer, strSubVersion);         
         }
@@ -3309,11 +3311,13 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
 
             /* Double check peers */
-            for(CPeer pToCheck : pfrom->netNode->vPeersToCheck){
-                LogPrint(BCLog::NET, "[POC] Double-checking peers\n");
+            for(CPeer& pToCheck : pfrom->netNode->vPeersToCheck){
+                LogPrint(BCLog::NET, "[POC] Double-checking peer %s-%s\n",pToCheck.addr,pToCheck.addrBind);
                 bool checked = false;
                 for (CPeer& peer : vPeers){
-                    if(peer == pToCheck) checked=true;
+                    LogPrint(BCLog::NET, "[POC] Double-checking: %s-%s\n",peer.addr,peer.addrBind);
+                    //if(peer.isEqual(pToCheck)) LogPrint(BCLog::NET, "[POC] isEqual\n");
+                    if(peer.isEqual(pToCheck)){ checked=true; break;} //peer==pToCheck || 
                 }
                 
                 if(!checked){
@@ -3332,7 +3336,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
                 CNode* ppeer = NULL;
                 //Check if we already know this connection
-                CPeer *npeer = g_netmon->findPeer(&peer);
+                CPeer *npeer = g_netmon->findPeer2(&peer);
 
                 //Save pfrom
                 peer.node = pfrom->netNode;
@@ -3342,7 +3346,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     //If we know it, let's copy its verification status
                     if(npeer){
                         peer.fVerified = npeer->fVerified;
-                        peer.poc = npeer->poc;
+                        //peer.poc = npeer->poc;
                     }
                     // else{
                         //TODO: If we don't know this node, try to connect - use -local option to avoid this and try the standard port
@@ -3418,7 +3422,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         CPoC poc;
         vRecv >> poc;
 
-        LogPrint(BCLog::NET, "[POC] Received \"POC\" from %s (bind: %s): \n          [POC] id=%d|target:%s|monitor:%s\n", pfrom->addr.ToString(), pfrom->addrBind.ToStringPort(), poc.id, poc.target, poc.monitor);
+        LogPrint(BCLog::NET, "[POC] Received \"POC\" from %s (bind: %s): \n                    [POC] id=%d|target:%s|monitor:%s\n", pfrom->addr.ToString(), pfrom->addrBind.ToStringPort(), poc.id, poc.target, poc.monitor);
 
         //Check poc 
         //TODO: Check if monitor addr is trusted -- can we decide our own trusted monitors (among server nodes)?
@@ -3440,22 +3444,27 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             if(g_netmon){
                 //Check pfrom's peers for this poc
                 CNetNode *cnode = pfrom->netNode;
-                // if(!cnode){
-                //     LogPrint(BCLog::NET, "[POC] ERROR: pfrom netnode not found\n");
-                //     return false;
-                // }
+                if(!cnode){
+                    LogPrint(BCLog::NET, "[POC] ERROR: pfrom netnode not found\n");
+                    return false;
+                }
 
                 //
                 CPeer *peer = cnode->getPeer(poc.id);
-                if(peer && peer->poc->timeout >= GetTimeMicros()){
+if(peer) LogPrint(BCLog::NET, "[POC] cnode:%s, peer: %s\n", cnode->addr.c_str(), peer->addr.c_str());
+else LogPrint(BCLog::NET, "[POC] !peer\n"); 
+                if(peer){ //&& peer->poc->timeout > GetTimeMicros()
                     LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer->addr);
                     peer->poc->fVerified = true;
                     peer->fVerified = true;
 
                     //Check inbound peer as verified too
-                    CPeer *peer2 = g_netmon->getNode(peer->addr)->getPeer(peer->addrBind);
-                    if(peer2)
+                    CPeer *peer2 = g_netmon->findPeer2(peer);
+                    if(peer2){
                         peer2->fVerified=true;
+                        //peer2->poc=peer->poc;
+                        //peer2->poc->fVerified = true;
+                    }
                     else LogPrint(BCLog::NET, "[POC] ERROR: Peer %s not found\n", peer->addr);
                     
                     //TODO send CONFIRMPEER?
@@ -3988,7 +3997,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             // Message: poc (send pending POC messages)
             //
             if(!pto->vPocsToSend.empty()){
-                for (auto poc : pto->vPocsToSend){
+                for (const auto& poc : pto->vPocsToSend){
                     g_netmon->sendPoC(pto,poc);
                 }
                 pto->vPocsToSend.clear();
@@ -4000,19 +4009,13 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             CNetNode *node = pto->netNode;
             if(node){
                 //For each peer, check if their poc timeout expired
-                for (CPeer& peer : node->vPeers){ //loop through peers
-                //std::vector<CPeer>::iterator it;
-                //for (CPeer it = node->vPeers.begin(); it != node->vPeers.end(); ++it) {
-                //= std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer p) {return p.addr==a;});
-                    //CPeer *peer = &(*it);
-
+                for (CPeer& peer : node->vPeers){ 
                     //Check if poc timeout expired
-                    if(!peer.fInbound && !peer.poc->fExpired && !peer.poc->fVerified && peer.poc->timeout!=0 && peer.poc->timeout<nNow){
+                    if(!peer.fInbound && !peer.poc->fExpired && !peer.poc->fVerified && peer.poc->timeout<nNow && peer.poc->timeout!=0){ //
                         //Send ALERT
                         LogPrint(BCLog::NET, "[POC] poc (%d) timeout expired, sending ALERT\n", peer.poc->id);
 
                         std::string type("poc");
-
                         g_netmon->sendAlert(&peer, type);
 
                         //Set fVerified = false;

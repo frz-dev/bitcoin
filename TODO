@@ -1,5 +1,6 @@
 
 HIGH PRIORITY
+[ ] Update nodes after sending Alert
 [ ] Only save outbound peers ? - return only outbound in topology?
 [ ] Put CNetNode in CPeer
 [ ] Delete CNetNode if node disconnects
