@@ -94,6 +94,16 @@ public:
         return (this->addr == peer.addrBind) && (this->addrBind == peer.addr) && (this->fInbound == !peer.fInbound);
     }
 
+    CPeer getSymmetric(){
+        CPeer sym;
+
+        sym.addr = addrBind;
+        sym.addrBind = addr;
+        sym.fInbound = fInbound;
+
+        return sym;
+    }
+
     template <typename Stream>
     void Serialize(Stream& s) const {
         s << addr
@@ -166,10 +176,12 @@ class CNetNode
 {
 private:
     CNode *cnode;
+    CCriticalSection cs_peers;
 
 public:
     std::string addr;
-    std::vector<CPeer> vPeers; //TODO: CPeer *
+    std::vector<CPeer> vPeers GUARDED_BY(cs_peers);
+    //TODO: CPeer *
     //TODO move CPeer info here and make vector<CNetNode> -- how to handle pocId?
 
     std::vector<CPeer> vPeersToCheck;
@@ -247,6 +259,22 @@ public:
         return false;
     }
 
+    bool removePeer(CPeer *p){
+        //CPeer p2 = p.getSymmetric();
+        bool removed = false;
+
+        std::vector<CPeer>::iterator it = std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer peer) {
+            return peer==*p || peer.isEqual(*p);
+        });
+
+        if ( it != vPeers.end() ){
+            vPeers.erase(it);
+            removed = true;
+        }
+
+        return removed;
+    }
+
     void copyNode(CNetNode &node){
         node.addr = addr;
 
@@ -263,7 +291,8 @@ public:
 class CNetMon
 {
 private:
-    std::vector<CNetNode*> vNetNodes;
+    CCriticalSection cs_netmon;
+    std::vector<CNetNode*> vNetNodes GUARDED_BY(cs_netmon);
 
 public:
     CNetNode* addNode(std::string addr, CNode *cnode){
@@ -330,6 +359,21 @@ public:
 
         return false;
     }
+
+    // bool removePeer(CPeer *p){
+    //     bool removed = false;
+
+    //     std::vector<CPeer>::iterator it = std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer peer) {
+    //         return peer==*p || peer.isEqual(*p);
+    //     });
+
+    //     if ( it != vPeers.end() ){
+    //         vPeers.erase(it);
+    //         removed = true;
+    //     }
+
+    //     return removed;
+    // }
 
     void GetNodes(std::vector<CNetNode*>& vnetnodes){
         vnetnodes.clear();

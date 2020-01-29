@@ -3316,8 +3316,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 bool checked = false;
                 for (CPeer& peer : vPeers){
                     LogPrint(BCLog::NET, "[POC] Double-checking: %s-%s\n",peer.addr,peer.addrBind);
-                    //if(peer.isEqual(pToCheck)) LogPrint(BCLog::NET, "[POC] isEqual\n");
-                    if(peer.isEqual(pToCheck)){ checked=true; break;} //peer==pToCheck || 
+
+                    if(peer.isEqual(pToCheck)){ checked=true; break;}
                 }
                 
                 if(!checked){
@@ -3396,9 +3396,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         ppeer = g_netmon->connectNode(&peer);
                         if(!ppeer) break;
                         ppeer->netNode = g_netmon->addNode(ppeer->addr.ToString(), ppeer);
-                        // CPeer p2(peer.addrBind,peer.addr,!peer.fInbound);
-                        // p2.poc = peer.poc;
-                        // ppeer->netNode->addPeer(p2);
+                        CPeer p2 = peer.getSymmetric();
+                        p2.poc = peer.poc;
+                        ppeer->netNode->addPeer(p2);
                         ppeer->netNode->vPeersToCheck.push_back(peer);
                     }                    
 
@@ -3409,13 +3409,16 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     }
                     else{ //If not fully connected, let's postpone
                         LogPrint(BCLog::NET, "[POC] Postponing POC\n");
+                        if(!ppeer) LogPrint(BCLog::NET, "[POC] ERROR: !ppeer\n");
                         ppeer->vPocsToSend.push_back(poc);
                     }
                 }
             }//for(CPeer& peer : vPeers)
 
             //Update peers
+            LogPrint(BCLog::NET, "[POC] Replacing peers\n");
             node->replacePeers(vPeers);
+            LogPrint(BCLog::NET, "[POC] Update DONE\n");
         }
 
         return true;
@@ -3590,8 +3593,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         /*If the alert is correct, then disconnect peer*/
         LogPrint(BCLog::NET, "[POC] Disconnecting from node %s\n", ppeer->addr.ToString());
-        ppeer->fDisconnect = true;
-        //TODO?: connman->DisconnectNode(pnode->addr);
+        //ppeer->fDisconnect = true;
+        //TODO?:         
+        g_connman->DisconnectNode(ppeer->addr);
 
         return true;
     }
