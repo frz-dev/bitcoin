@@ -3243,7 +3243,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
             //Don't add pfrom to the list of peers
             if(addr == pfrom->addr.ToString())
-                break;
+                continue;
 
             CPeer peer(addr,addrBind,stats.fInbound);
             vPeers.push_back(peer);
