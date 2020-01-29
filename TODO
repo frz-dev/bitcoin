@@ -1,5 +1,6 @@
 
 HIGH PRIORITY
+[ ] Add CPeer*p1,p2 in CPoC
 [ ] Update nodes after sending Alert
 [ ] Only save outbound peers ? - return only outbound in topology?
 [ ] Put CNetNode in CPeer
