@@ -3289,6 +3289,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
             /* Delete disconnected nodes from peer list */
             for (CPeer& curpeer : node->vPeers){
+                if(curpeer.addr.empty()) continue;
+
                 LogPrint(BCLog::NET, "[POC] LOG curpeer %s\n", curpeer.addr);
                 bool found = false;
                 for (CPeer& newpeer : vPeers)
@@ -3303,13 +3305,17 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     bool pi = !curpeer.fInbound;
 
                     //Remove symmetric
-                    CNetNode *node2 = g_netmon->findPeer(pa, pi);
-                    if(node2){ 
-                        LogPrint(BCLog::NET, "[POC] Removing peer %s-%s\n", pb, pa);
-                        bool ret = node2->removePeer(&curpeer);
-                        if(!ret) LogPrint(BCLog::NET, "[POC] ERROR: removePeer(%s) failed\n",pb);
-                    }
-                    else LogPrint(BCLog::NET, "[POC] ERROR: couldn't find %s\n", pa);
+                    CPeer *peer2 = g_netmon->findPeer2(&curpeer);
+                    if (peer2)
+                    {
+                        CNetNode *node2 = peer2->node;
+                        if(node2){ 
+                            LogPrint(BCLog::NET, "[POC] Removing peer %s-%s\n", pb, pa);
+                            bool ret = node2->removePeer(peer2);
+                            if(!ret) LogPrint(BCLog::NET, "[POC] ERROR: removePeer(%s) failed\n",pb);
+                        }
+                    }                    
+                    else LogPrint(BCLog::NET, "[POC] ERROR: couldn't find peer %s-%s\n", pb, pa);
                 }
             }
 
@@ -3350,6 +3356,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     //If we know it, let's copy its verification status
                     if(npeer){
                         peer.fVerified = npeer->fVerified;
+                        //TODO56
                         //peer.poc = npeer->poc;
                     }
                     // else{
@@ -3470,10 +3477,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     CPeer *peer2 = g_netmon->findPeer2(peer);
                     if(peer2){
                         peer2->fVerified=true;
+                        //TODO56
                         //peer2->poc=peer->poc;
                         //peer2->poc->fVerified = true;
                     }
-                    else LogPrint(BCLog::NET, "[POC] ERROR: Peer %s not found\n", peer->addr);
+                    else LogPrint(BCLog::NET, "[POC] ERROR: Peer %s-%s not found\n", peer->addrBind,peer->addr);
                     
                     //TODO send CONFIRMPEER?
                 }

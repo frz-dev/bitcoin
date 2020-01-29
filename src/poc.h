@@ -339,7 +339,7 @@ public:
     CPeer* findPeer2(CPeer *p){
         for (auto node : vNetNodes){
             for (CPeer& peer : node->vPeers){
-                if(peer.addrBind==p->addr && peer.addr==p->addrBind && peer.fInbound==!p->fInbound) 
+                if(peer.isEqual(*p)) 
                     return &peer;
             }
                 
