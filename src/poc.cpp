@@ -47,11 +47,12 @@ void CNetMon::sendAlert(CPeer *peer, std::string type){
     else 
         pA = g_connman->FindNode(peer->addr);
     if(pA){
-    LogPrint(BCLog::NET, "[POC] Sending \"ALERT\" to %s\n", pA->addr.ToString());
-    g_connman->PushMessage(pA, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));
+        LogPrint(BCLog::NET, "[POC] Sending \"ALERT\" to %s\n", pA->addr.ToString());
+        g_connman->PushMessage(pA, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));
+        
+        //Remove peer
+        pA->netNode->removePeer(peer);
     }
-    //Remove peer
-    pA->netNode->removePeer(peer);
 
     //Send to node B (if connected)
     CNetNode *pBn = g_netmon->getNode(peer->addr);

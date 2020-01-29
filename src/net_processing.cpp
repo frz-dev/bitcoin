@@ -3263,7 +3263,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         vRecv >> vPeers;
         //LOG - TODO:BCLog::NET 
         for (const CPeer& peer : vPeers){
-            // int64_t nNow = GetAdjustedTime();
             LogPrint(BCLog::NET, "[POC] - addr=%s|addrBind=%s|%s\n", peer.addr, peer.addrBind, peer.fInbound?"inbound":"outbound");
         }
 
@@ -3296,14 +3295,18 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     if(curpeer == newpeer) found = true;
 
                 if(!found){
+                    LogPrint(BCLog::NET, "[POC] Removing peer %s-%s\n", curpeer.addr, curpeer.addrBind);
+                    node->removePeer(&curpeer);
+
                     std::string pa = curpeer.addr;
                     std::string pb = curpeer.addrBind;
-                    bool pi = curpeer.fInbound;
+                    bool pi = !curpeer.fInbound;
 
+                    //Remove symmetric
                     CNetNode *node2 = g_netmon->findPeer(pa, pi);
                     if(node2){ 
-                        LogPrint(BCLog::NET, "[POC] Removing node %s from peer %s\n", pb, node2->addr);
-                        bool ret = node2->removePeer(pb);
+                        LogPrint(BCLog::NET, "[POC] Removing peer %s-%s\n", pb, pa);
+                        bool ret = node2->removePeer(&curpeer);
                         if(!ret) LogPrint(BCLog::NET, "[POC] ERROR: removePeer(%s) failed\n",pb);
                     }
                     else LogPrint(BCLog::NET, "[POC] ERROR: couldn't find %s\n", pa);
@@ -3311,7 +3314,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
 
             /* Double check peers */
-            for(CPeer& pToCheck : pfrom->netNode->vPeersToCheck){
+            if(!node){ LogPrint(BCLog::NET, "[POC] ERROR: !node\n"); } 
+            for(CPeer& pToCheck : node->vPeersToCheck){
                 LogPrint(BCLog::NET, "[POC] Double-checking peer %s-%s\n",pToCheck.addr,pToCheck.addrBind);
                 bool checked = false;
                 for (CPeer& peer : vPeers){
@@ -3326,13 +3330,13 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 }
             }
             //Empty list
-            pfrom->netNode->vPeersToCheck.clear();
+            node->vPeersToCheck.clear();
 
             /* Process PEERS */
             //For each peer that pfrom sent us
             for (CPeer& peer : vPeers){
                 //Exclude monitor from verification
-                if(peer.addr==ouraddr) break;
+                if(peer.addr==ouraddr) continue;
 
                 CNode* ppeer = NULL;
                 //Check if we already know this connection
@@ -3428,7 +3432,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         CPoC poc;
         vRecv >> poc;
 
-        LogPrint(BCLog::NET, "[POC] Received \"POC\" from %s (bind: %s): \n                    [POC] id=%d|target:%s|monitor:%s\n", pfrom->addr.ToString(), pfrom->addrBind.ToStringPort(), poc.id, poc.target, poc.monitor);
+        LogPrint(BCLog::NET, "[POC] Received \"POC\" from %s (bind: %s): \n                     [POC] id=%d|target:%s|monitor:%s\n", pfrom->addr.ToString(), pfrom->addrBind.ToStringPort(), poc.id, poc.target, poc.monitor);
 
         //Check poc 
         //TODO: Check if monitor addr is trusted -- can we decide our own trusted monitors (among server nodes)?
