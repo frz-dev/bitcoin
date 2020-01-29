@@ -11,12 +11,10 @@
 #include <net.h>
 
 class CNode;
+class CNetNode;
+class CPeer;
 
-/* CPoCChallenge */
-// class CPoCChallenge
-// {
-
-// }
+static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
 
 /* CPoC */
 class CPoC
@@ -70,6 +68,7 @@ public:
     bool fInbound;
     CPoC *poc;
     bool fVerified;
+    CNetNode *node;
 
     CPeer(){
         addr = "";
@@ -84,10 +83,25 @@ public:
         fInbound = i;
         poc = NULL;
         fVerified = false;
+        node = NULL;
     };
     
     bool operator==(const CPeer &peer) const {
         return (this->addr == peer.addr) && (this->addrBind == peer.addrBind) && (this->fInbound == peer.fInbound);
+    }
+
+    bool isEqual(const CPeer &peer) const {
+        return (this->addr == peer.addrBind) && (this->addrBind == peer.addr) && (this->fInbound == !peer.fInbound);
+    }
+
+    CPeer getSymmetric(){
+        CPeer sym;
+
+        sym.addr = addrBind;
+        sym.addrBind = addr;
+        sym.fInbound = fInbound;
+
+        return sym;
     }
 
     template <typename Stream>
@@ -125,35 +139,35 @@ public:
     std::string type;
     std::string addr1;
     std::string addr2;
-    int pocId;
+    //int pocId;
 
     CPoCAlert(){
         type = "";
         addr1 = "";
         addr2 = "";
-        pocId = -1;
+        //pocId = -1;
     };
-    CPoCAlert(const std::string& t, const std::string& a1, const std::string& a2, int p){
+    CPoCAlert(const std::string& t, const std::string& a1, const std::string& a2){
         type = t;
         addr1 = a1;
         addr2 = a2;
-        pocId = p;
+        //pocId = p;
     };
     
     template <typename Stream>
     void Serialize(Stream& s) const {
         s << type
           << addr1
-          << addr1
-          << pocId;
+          << addr2;
+          //<< pocId;
     }
 
     template <typename Stream>
     void Unserialize(Stream& s) {
         s >> type
           >> addr1
-          >> addr1
-          >> pocId;
+          >> addr2;
+//          >> pocId;
     }
 };
 
@@ -162,11 +176,15 @@ class CNetNode
 {
 private:
     CNode *cnode;
+    CCriticalSection cs_peers;
 
 public:
     std::string addr;
-    std::vector<CPeer> vPeers; //TODO: CPeer *
+    std::vector<CPeer> vPeers GUARDED_BY(cs_peers);
+    //TODO: CPeer *
     //TODO move CPeer info here and make vector<CNetNode> -- how to handle pocId?
+
+    std::vector<CPeer> vPeersToCheck;
 
     CNetNode(){}
     CNetNode(std::string a, CNode *n){
@@ -209,7 +227,7 @@ public:
 
     CPeer* findPeer(CPeer p){
         for (CPeer& peer : vPeers){
-            if(peer == p) return &peer;
+            if(peer == p || peer.isEqual(p)) return &peer;
         }
         return nullptr;
     }
@@ -241,6 +259,22 @@ public:
         return false;
     }
 
+    bool removePeer(CPeer *p){
+        //CPeer p2 = p.getSymmetric();
+        bool removed = false;
+
+        std::vector<CPeer>::iterator it = std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer peer) {
+            return peer==*p || peer.isEqual(*p);
+        });
+
+        if ( it != vPeers.end() ){
+            vPeers.erase(it);
+            removed = true;
+        }
+
+        return removed;
+    }
+
     void copyNode(CNetNode &node){
         node.addr = addr;
 
@@ -257,7 +291,8 @@ public:
 class CNetMon
 {
 private:
-    std::vector<CNetNode*> vNetNodes;
+    CCriticalSection cs_netmon;
+    std::vector<CNetNode*> vNetNodes GUARDED_BY(cs_netmon);
 
 public:
     CNetNode* addNode(std::string addr, CNode *cnode){
@@ -289,6 +324,29 @@ public:
             return getNode(addr);
     }
 
+    CPeer* findPeer(CPeer *p){
+        for (auto node : vNetNodes){
+            for (CPeer& peer : node->vPeers){
+                if(peer.addr==p->addr && peer.addrBind==p->addrBind && peer.fInbound==p->fInbound) 
+                    return &peer;
+            }
+                
+        }
+
+        return nullptr;
+    }
+
+    CPeer* findPeer2(CPeer *p){
+        for (auto node : vNetNodes){
+            for (CPeer& peer : node->vPeers){
+                if(peer.addrBind==p->addr && peer.addr==p->addrBind && peer.fInbound==!p->fInbound) 
+                    return &peer;
+            }
+                
+        }
+
+        return nullptr;
+    }
 
     bool removeNode(std::string a){
         std::vector<CNetNode*>::iterator it = std::find_if(vNetNodes.begin(), vNetNodes.end(), [&](CNetNode *n) {return n->addr==a;});
@@ -301,6 +359,21 @@ public:
 
         return false;
     }
+
+    // bool removePeer(CPeer *p){
+    //     bool removed = false;
+
+    //     std::vector<CPeer>::iterator it = std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer peer) {
+    //         return peer==*p || peer.isEqual(*p);
+    //     });
+
+    //     if ( it != vPeers.end() ){
+    //         vPeers.erase(it);
+    //         removed = true;
+    //     }
+
+    //     return removed;
+    // }
 
     void GetNodes(std::vector<CNetNode*>& vnetnodes){
         vnetnodes.clear();
@@ -316,6 +389,9 @@ public:
     }
 
     void sendPoC(CNode *pto, CPoC *poc);
+    void sendAlert(CPeer *peer, std::string type);
+    CNode* connectNode(std::string addr);
+    CNode* connectNode(CPeer *peer);
 };
 /**/
 

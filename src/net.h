@@ -333,7 +333,7 @@ public:
     */
     int64_t PoissonNextSendInbound(int64_t now, int average_interval_seconds);
 
-        /*POC: make public*/
+    /*POC: made public*/
     CNode* FindNode(const CNetAddr& ip);
     CNode* FindNode(const CSubNet& subNet);
     CNode* FindNode(const std::string& addrName);
@@ -794,9 +794,10 @@ public:
     std::atomic<int> nStartingHeight{-1};
 
     /*POC*/
+    CCriticalSection cs_pocs;
     CNetNode *netNode;
-    std::vector<CPoC*> vPocsToSend;
-    int64_t nNextPocUpdate {0}; //GUARDED_BY(cs_sendProcessing){0};
+    std::vector<CPoC*> vPocsToSend GUARDED_BY(cs_pocs);
+    int64_t nNextPocUpdate {0};
     /**/
 
     // flood relay
