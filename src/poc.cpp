@@ -18,8 +18,8 @@ void CNetMon::sendPoC(CNode *pto, CPoC *poc){
 
     //Set timeout
     int64_t tNow = GetTime();
-    int ping = (int) pto->nPingUsecTime+pfrom->nPingUsecTime;
-LogPrint(BCLog::NET, "[POC] DEBUG: ping:%d", ping);
+    int ping = (unsigned int) pto->nPingUsecTime+pfrom->nPingUsecTime;
+LogPrint(BCLog::NET, "[POC] DEBUG: ping:%u\n", ping);
     if(pto->nPingUsecTime+pfrom->nPingUsecTime == 0)
         poc->timeout = tNow + MAX_VERIFICATION_TIMEOUT;
     else
@@ -52,12 +52,6 @@ void CNetMon::sendAlert(CPeer *peer, std::string type){
     if(pA){
         LogPrint(BCLog::NET, "[POC] Sending \"ALERT\" to %s\n", pA->addr.ToString());
         g_connman->PushMessage(pA, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));    
-
-        //TODO? : it crashes
-        // CNetNode *pAn = pA->netNode;
-        // if(pAn)
-        //     pAn->removePeer(peer);
-
     }
 
     //Send to node B (if connected)
@@ -68,9 +62,9 @@ void CNetMon::sendAlert(CPeer *peer, std::string type){
             LogPrint(BCLog::NET, "[POC] Sending \"ALERT\" to %s\n", pB->addr.ToString());
             g_connman->PushMessage(pB, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));
         }
-        //TODO? : it crashes
-        // pBn->removePeer(peer);
     }
+
+    g_netmon->removePeer(*peer);
 
     //TODO: decrease reputation of nodes that keep claiming unverified connections
 }

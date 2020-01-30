@@ -1080,7 +1080,7 @@ void CConnman::DisconnectNodes()
                     /*POC*/
                     if(g_netmon){
                         LogPrint(BCLog::NET, "[POC] DISCONNECTED NODE: %s\n", pnode->addr.ToString());
-                        g_netmon->removeNode(pnode->addr.ToString());
+                        //g_netmon->removeNode(pnode->addr.ToString());
                     }
                     /**/
                     vNodesDisconnected.remove(pnode);

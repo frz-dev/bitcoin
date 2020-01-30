@@ -22,6 +22,7 @@ LOW PRIORITY
 [ ] BCLog::POC #Keep basic log as NET, and 2nd-level log as POC
 [ ] Create a POC list to quickly find a POC when receiving it back
 [ ] Optimization: keep sending poc on verified connections; peers only send new peers
+[ ] TODO01
 
 ---------------------------
 [X] Put CNetNode * in CNode

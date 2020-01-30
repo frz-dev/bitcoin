@@ -3623,9 +3623,9 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
 
         /*If the alert is correct, then disconnect peer*/
         LogPrint(BCLog::NET, "[POC] Disconnecting from node %s\n", ppeer->addr.ToString());
-        //ppeer->fDisconnect = true;
+        ppeer->fDisconnect = true;
         //TODO?:         
-        g_connman->DisconnectNode(ppeer->addr);
+        //g_connman->DisconnectNode(ppeer->addr);
 
         return true;
     }
