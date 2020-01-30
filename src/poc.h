@@ -390,9 +390,8 @@ LogPrint(BCLog::NET, "[POC]: DEBUG: duplicate addNode (%s)\n", addr);
         std::vector<CNetNode*>::iterator it = std::find_if(vNetNodes.begin(), vNetNodes.end(), [&](CNetNode *n) {return n->addr==a;});
 
         if ( it != vNetNodes.end() ){
-            //TODO15 Delete peers
-            // for(auto peer : it->vPeers)
-            //     g_netmon->removePeer(peer);
+            for(auto peer : (*it)->vPeers)
+                removePeer(peer);
 
             delete *it;
             vNetNodes.erase(it);

@@ -17,17 +17,13 @@ void CNetMon::sendPoC(CNode *pto, CPoC *poc){
     if(!pfrom){ LogPrint(BCLog::NET, "[POC] WARNING: pfrom not found\n"); return;} //TODO: return false
 
     //Set timeout
-    int64_t tNow = GetTime();
-    int ping = (int) pto->nPingUsecTime+pfrom->nPingUsecTime;
-LogPrint(BCLog::NET, "[POC] DEBUG: ping:%d", ping);
-    if(pto->nPingUsecTime+pfrom->nPingUsecTime == 0)
-        poc->timeout = tNow + MAX_VERIFICATION_TIMEOUT;
+    int64_t nNow = GetTimeMicros();
+    int64_t ping = pto->nPingUsecTime+pfrom->nPingUsecTime;
+LogPrint(BCLog::NET, "[POC] DEBUG: ping:%d\n", (int)ping);
+    if(ping == 0)
+        poc->timeout = nNow+(MAX_VERIFICATION_TIMEOUT*1000000);
     else
-        poc->timeout = tNow+((pto->nPingUsecTime+pfrom->nPingUsecTime)*2);
-
-    //TODO: peer.timeout = poc.timeout
-    //CPeer *peer = pfrom->netNode->getPeer(poc->id);
-    //if(peer) peer->timeout = poc->timeout;
+        poc->timeout = nNow+(ping*3);
 
     //Send POC
     LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target:%s|monitor:%s\n", pto->addr.ToString(),poc->id,poc->target,poc->monitor);
