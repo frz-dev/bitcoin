@@ -15,7 +15,7 @@ class CNetNode;
 class CPeer;
 
 static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
-static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 100;
+static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 10;
 
 /* CPoC */
 class CPoC

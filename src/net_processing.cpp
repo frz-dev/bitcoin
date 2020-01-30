@@ -3381,7 +3381,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         //If node is not in peer's peerlist, let's add it to the double-check list
 LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
                         if(!nnode->findPeer2(peer)){
-                            LogPrint(BCLog::NET, "[POC] WARNING: node connected but symmetric peer not found\n");
+                            LogPrint(BCLog::NET, "[POC] WARNING: symmetric peer not found\n");
                             nnode->addPeerToCheck(peer);
                         }
                     }
@@ -3623,9 +3623,7 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
 
         /*If the alert is correct, then disconnect peer*/
         LogPrint(BCLog::NET, "[POC] Disconnecting from node %s\n", ppeer->addr.ToString());
-        //ppeer->fDisconnect = true;
-        //TODO?:         
-        g_connman->DisconnectNode(ppeer->addr);
+        ppeer->fDisconnect = true;
 
         return true;
     }
