@@ -3323,9 +3323,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             /* Process PEERS */
             //For each peer that pfrom sent us
             for (CPeer& peer : vPeers){
-                //Exclude monitor from verification
-                if(peer.addr==ouraddr) continue;
-
                 CNode* ppeer = NULL;
                 //Save pfrom
                 peer.node = pfrom->netNode;
