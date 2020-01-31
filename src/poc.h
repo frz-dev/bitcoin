@@ -207,13 +207,8 @@ public:
         //Keep old peer.fVerified state
         for (CPeer& newpeer : newvPeers){
             CPeer *peer = findPeer(newpeer);
-            if(peer){
+            if(peer)
                 newpeer.fVerified = peer->fVerified;
-
-                // //Update inbound part
-                // CPeer *inpeer = getPeer(peer->addrBind);
-                // if(inpeer) inpeer->poc = newpeer.poc;
-            }
         }
 
         //? delete vPeers;
@@ -391,31 +386,18 @@ public:
         std::vector<CNetNode*>::iterator it = std::find_if(vNetNodes.begin(), vNetNodes.end(), [&](CNetNode *n) {return n->addr==a;});
 
         if ( it != vNetNodes.end() ){
-            for(auto peer : (*it)->vPeers)
-                removePeer(peer);
+            for(auto peer : (*it)->vPeers){
+                    removePeer(peer);
+            }
 
-            delete *it;
+            delete (*it);
             vNetNodes.erase(it);
+            //? vNetNodes.shrink_to_fit();
             return true;
         }
 
         return false;
     }
-
-    // bool removePeer(CPeer *p){
-    //     bool removed = false;
-
-    //     std::vector<CPeer>::iterator it = std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer peer) {
-    //         return peer==*p || peer.isEqual(*p);
-    //     });
-
-    //     if ( it != vPeers.end() ){
-    //         vPeers.erase(it);
-    //         removed = true;
-    //     }
-
-    //     return removed;
-    // }
 
     void GetNodes(std::vector<CNetNode*>& vnetnodes){
         vnetnodes.clear();
