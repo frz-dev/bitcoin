@@ -27,7 +27,6 @@ public:
     //Digital Signature?
     std::atomic<int64_t> timeout{0};
     std::string target_addr;
-    bool fExpired{false};
     bool fVerified{false}; //We distinguish between the peer's verified status, and the poc status
                            //so  we can keep the peer's previous status unchanged while we wait for poc to complete
 
@@ -400,9 +399,9 @@ public:
             for(auto peer : toDelete)
                 removePeer(peer);
 
-//            delete (*it);
+            delete (*it);
             vNetNodes.erase(it);
-            //? vNetNodes.shrink_to_fit();
+            vNetNodes.shrink_to_fit();
             return true;
         }
 
