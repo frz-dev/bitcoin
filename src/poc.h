@@ -391,10 +391,14 @@ public:
         LogPrint(BCLog::NET, "[POC] Removing node: %s\n", a);
         std::vector<CNetNode*>::iterator it = std::find_if(vNetNodes.begin(), vNetNodes.end(), [&](CNetNode *n) {return n->addr==a;});
 
+        std::vector<CPeer *> toDelete;
         if ( it != vNetNodes.end() ){
-            for(auto peer : (*it)->vPeers){
-                    removePeer(peer);
+            for(auto& peer : (*it)->vPeers){
+                toDelete.push_back(&(*it));
             }
+
+            for(auto& peer : toDelete)
+                removePeer(peer);
 
 //            delete (*it);
             vNetNodes.erase(it);
