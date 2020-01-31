@@ -15,7 +15,7 @@ class CNetNode;
 class CPeer;
 
 static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
-static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 30;
+static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 5;
 
 /* CPoC */
 class CPoC
@@ -303,7 +303,13 @@ private:
     CCriticalSection cs_netmon;
     std::vector<CNetNode*> vNetNodes GUARDED_BY(cs_netmon);
 
+    void setMaxTimeout();
+
 public:
+    CNetMon(){
+        setMaxTimeout();
+    }
+
     CNetNode* addNode(std::string addr, CNode *cnode){
 //LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
         for(auto& node : vNetNodes)
@@ -390,7 +396,7 @@ public:
                     removePeer(peer);
             }
 
-            delete (*it);
+//            delete (*it);
             vNetNodes.erase(it);
             //? vNetNodes.shrink_to_fit();
             return true;

@@ -3274,13 +3274,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             ouraddr = addrBind.ToStringIP() + ":" + std::to_string(ourport);
             
             // /* Get pfrom node */
-            // //TODO: move this later!
-            // //Retrieve peer list
-            // std::vector<CNodeStats> vstats;
-            // g_connman->GetNodeStats(vstats);
-
             //Retrieve node
-            //CNetNode *node = g_netmon->getNode(pfrom->addr.ToString());
             CNetNode *node = pfrom->netNode;
             if(!node){
                 LogPrint(BCLog::NET, "[POC] ERROR: node=false\n");
@@ -3330,20 +3324,21 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 //Set max verification timeout
                 //TODO22: get ping time from pfrom and use it to set timeout
                 int64_t tNow = GetTime();
-                peer.timeout = tNow + MAX_VERIFICATION_TIMEOUT;
+                int64_t nNow = GetTimeMicros();
+                peer.timeout = nNow + MAX_VERIFICATION_TIMEOUT*1000000;
 
                 /* inbound */
                 if(peer.fInbound){                   
-                    //If we know it, let's copy its verification status
+                    //If we know it, let's copy its verification status and poc
                     CPeer *npeer = g_netmon->findPeer2(peer);
                     if(npeer){
                         LogPrint(BCLog::NET, "[POC] Peer2 found: %s-%s\n", peer.addrBind, peer.addr);
                         peer.fVerified = npeer->fVerified;
-                        //TODO56
                         peer.poc = npeer->poc;
                     }
-                    // else{
-                        //TODO: If we don't know this node, try to connect - use -local option to avoid this and try the standard port
+                    else{
+                        //TODO: If we don't know this node, try to connect using public peer list 
+                        //avoid this when in regtest mode and try the standard port
                         // if(!nnode){
                         //     std::string addr = peer.addr.ToStringIP+GetListenPort().ToString();
                         //     ppeer = g_netmon->connectNode(addr);
@@ -3352,10 +3347,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         //         ppeer->netNode = nnode;
                         //     }
                         // }
-                        // //Add peer to CrossCheck list
-                        //TODO nnode->vPeersToCheck.push_back(peer);
+                        
+                        //Add peer to CrossCheck list. How? We don't know peer2
+                        //nnode->vPeersToCheck.push_back(peer);
                         //save somewhere else?
-                    // }
+                    }
                 }
                 /* outbound */
                 else{
@@ -3377,9 +3373,12 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         if(!ppeer) {LogPrint(BCLog::NET, "[POC] ERROR: !ppeer\n");continue;}
 
                         //If node is not in peer's peerlist, let's add it to the double-check list
-LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
-                        if(!nnode->findPeer2(peer)){
-                            LogPrint(BCLog::NET, "[POC] WARNING: symmetric peer not found\n");
+                        CPeer *peer2 = nnode->findPeer2(peer);
+                        if(peer2){
+                            peer2->poc = peer.poc;
+                        }
+                        else{
+                            LogPrint(BCLog::NET, "[POC] WARNING: symmetric peer not found. Adding to PeersToCheck\n");
                             nnode->addPeerToCheck(peer);
                         }
                     }
@@ -3394,21 +3393,13 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
                             ppeer->netNode = g_netmon->addNode(ppeer->addr.ToString(), ppeer);
                             //Add peer to double check list
                             ppeer->netNode->addPeerToCheck(peer);
+                            nnode = ppeer->netNode;
                         }
                         else{
                             //TODO?: report (sendAlert?) to pfrom
                             LogPrint(BCLog::NET, "[POC] ERROR: could not connect\n"); continue;
-                        }
-
-                        //Add symmetric (commented, cause should be added if sent in PEERS)
-                        // CPeer p2 = peer.getSymmetric();
-                        // p2.poc = peer.poc;
-                        // ppeer->netNode->addPeer(p2);
-
-                        
+                        }                        
                     }                    
-
-                    //TODO12: add symmetric
 
                     /* Send POC */
                     //TODO: check if g_connman->NodeFullyConnected(ppeer) ever returns true after OpenNetworkConnection. If not, do postpone only after connect()
@@ -3488,7 +3479,8 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
                 CPeer *peer = cnode->getPeer(poc.id);
                 if(peer){
                     //If we receive POC we consider
-                    int64_t delay = ((GetSystemTimeInSeconds() - peer->poc->timeout)/1000000);
+                    int64_t nNow = GetTimeMicros();
+                    int64_t delay = (nNow - peer->poc->timeout);
                     LogPrint(BCLog::NET, "[POC] POC arrived %d microseconds %s timeout\n", (int)delay, (delay<0)?"before":"after" );
 
                     LogPrint(BCLog::NET, "[POC] Connection %s->%s verified\n", pfrom->addr.ToString(), peer->addr);
@@ -3501,7 +3493,7 @@ LogPrint(BCLog::NET, "[POC] DEBUG: cross-checking peer: %s\n", peer.addr);
                         peer2->fVerified=true;
                         peer2->poc=peer->poc;
                     }
-                    // else LogPrint(BCLog::NET, "[POC] ERROR: Peer2 %s-%s not found\n", peer->addrBind,peer->addr);
+                    else LogPrint(BCLog::NET, "[POC] ERROR: Peer2 %s-%s not found\n", peer->addrBind,peer->addr);
                     
                     //TODO send CONFIRMPEER?
                 }
@@ -4062,7 +4054,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                         peer.fVerified = false;
                     }
                     else{
-                        if(peer.timeout!=0 && peer.timeout<tNow){ //be sure to set symmetric as verified
+                        if(!peer.fVerified && peer.timeout!=0 && peer.timeout<nNow){ //be sure to set symmetric as verified
                             //Send ALERT
                             LogPrint(BCLog::NET, "[POC] verification time timeout expired: %s, sending ALERT\n", peer.addr);
 

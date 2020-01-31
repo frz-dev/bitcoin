@@ -8,6 +8,21 @@ class CNode;
 class CNetMsgMaker;
 class CAddress;
 
+/* setMaxTimeout */
+void CNetMon::setMaxTimeout(){
+    int64_t max_ping=0;
+    std::vector<CNodeStats> vstats;
+    g_connman->GetNodeStats(vstats);
+        
+    for (const CNodeStats& stats : vstats){
+        CNode *node = g_connman->FindNode(stats.addr);
+        if(node && (node->nPingUsecTime > max_ping))
+            max_ping = node->nPingUsecTime;
+    }
+
+    LogPrint(BCLog::NET, "[POC] MAX PING = %d\n", (int)max_ping);
+}
+
 /* sendPoC */
 void CNetMon::sendPoC(CNode *pto, CPoC *poc){
     const CNetMsgMaker msgMaker(pto->GetSendVersion());
@@ -28,7 +43,7 @@ LogPrint(BCLog::NET, "[POC] DEBUG: ping is 0, setting to MAX\n");
     else
         poc->timeout = nNow+(ping*6);
 
-LogPrint(BCLog::NET, "[POC] DEBUG: timeout (microsecs):%d\n", (int)((poc->timeout-nNow)));
+LogPrint(BCLog::NET, "[POC] DEBUG: timeout (microsecs):%d (MAX:%d)\n", (int)((poc->timeout-nNow)),(int)(MAX_VERIFICATION_TIMEOUT*1000000));
 
     //Send POC
     LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target:%s|monitor:%s\n", pto->addr.ToString(),poc->id,poc->target,poc->monitor);

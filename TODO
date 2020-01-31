@@ -1,5 +1,6 @@
 
 HIGH PRIORITY
+[ ] Set MAX_VERIFICATION_TIMEOUT to max seen ping
 [ ] unverified (timeout)
 [ ] TODO12
 [ ] TODO22
