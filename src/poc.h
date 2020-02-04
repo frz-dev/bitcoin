@@ -15,7 +15,7 @@ class CNetNode;
 class CPeer;
 
 static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
-static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 5000000;
+static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 10000000;
 
 /* CPoC */
 class CPoC
@@ -98,7 +98,7 @@ public:
 
         sym.addr = addrBind;
         sym.addrBind = addr;
-        sym.fInbound = fInbound;
+        sym.fInbound = !fInbound;
 
         return sym;
     }
@@ -197,6 +197,7 @@ public:
 
     void addPeer(CPeer p){
         //TODO: check for duplicates
+        LOCK(cs_peers);
         vPeers.push_back(p);
     }
 
@@ -208,6 +209,7 @@ public:
                 newpeer.fVerified = peer->fVerified;
         }
 
+        LOCK(cs_peers);
         //? delete vPeers;
         vPeers = newvPeers;
     }
@@ -218,6 +220,7 @@ public:
 
 
     CPeer* findPeer(CPeer p){
+        LOCK(cs_peers);
         for (CPeer& peer : vPeers){
             if(peer == p || peer.isEqual(p)) return &peer;
         }
@@ -225,6 +228,7 @@ public:
     }
 
     CPeer* findPeer2(CPeer p){
+        LOCK(cs_peers);
         for (CPeer& peer : vPeers){
             if(peer.isEqual(p)) return &peer;
         }
@@ -232,6 +236,7 @@ public:
     }
 
     CPeer* getPeer(std::string a){ //TODO: This should per per (addr,addrBind)
+        LOCK(cs_peers);
         for (CPeer& peer : vPeers){
             if(peer.addr == a) return &peer;
         }
@@ -239,6 +244,7 @@ public:
     }
 
     CPeer* getPeer(int pocId){
+        LOCK(cs_peers);
         for (CPeer& peer : vPeers){
             if(peer.poc && peer.poc->id == pocId) 
                 return &peer;
@@ -248,7 +254,10 @@ public:
     }
 
     bool removePeer(std::string a,std::string aB){
-        std::vector<CPeer>::iterator it = std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer p) {return p.addr==a && p.addrBind==aB;});
+        LOCK(cs_peers);
+        std::vector<CPeer>::iterator it = std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer p) {
+            return p.addr==a && p.addrBind==aB;
+        });
 
         if ( it != vPeers.end() ){
             vPeers.erase(it);
@@ -260,12 +269,17 @@ public:
 
     bool removePeer(CPeer p){
 LogPrint(BCLog::NET, "[POC] DEBUG: removing peer (%s,%s)\n",p.addr,p.addrBind);
+        LOCK(cs_peers);
         std::vector<CPeer>::iterator it = std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer peer) {
             return peer==p;
         });
+//        LogPrint(BCLog::NET, "[POC] DEBUG: removePeer1\n");
 
-        if ( it != vPeers.end() ){
+        if (!vPeers.empty() && it != vPeers.end() ){
+//            LogPrint(BCLog::NET, "[POC] DEBUG: removePeer2\n");
             vPeers.erase(it);
+//            LogPrint(BCLog::NET, "[POC] DEBUG: removePeer3\n");
+            //vPeers.shrink_to_fit();
             return true;
         }
 
@@ -273,6 +287,7 @@ LogPrint(BCLog::NET, "[POC] DEBUG: removing peer (%s,%s)\n",p.addr,p.addrBind);
     }
 
     void copyNode(CNetNode &node){
+        LOCK(cs_peers);
         node.addr = addr;
 
         node.vPeers.clear();
@@ -284,6 +299,7 @@ LogPrint(BCLog::NET, "[POC] DEBUG: removing peer (%s,%s)\n",p.addr,p.addrBind);
     }
 
     void addPeerToCheck(CPeer p){
+        LOCK(cs_peers);
         //Avoid duplicates
         for (CPeer peer : vPeersToCheck){
             if(peer == p) return;
@@ -308,6 +324,7 @@ public:
     }
 
     CNetNode* addNode(std::string addr, CNode *cnode){
+        LOCK(cs_netmon);
 //LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
         for(auto& node : vNetNodes)
             if(node->addr == addr){
@@ -321,6 +338,7 @@ public:
     }
 
     CNetNode* getNode(std::string addr){
+        LOCK(cs_netmon);
         for (auto& node : vNetNodes){
             if(node->addr == addr) return node;
         }
@@ -328,6 +346,7 @@ public:
     }
 
     CNetNode* findInboundPeer(std::string addr){
+        LOCK(cs_netmon);
         for (auto& node : vNetNodes){
             for (CPeer& peer : node->vPeers)
                 if(peer.addrBind == addr) return node;
@@ -337,6 +356,7 @@ public:
     }    
 
     CNetNode* findNodeByPeer(std::string addr, std::string addrBind){
+        LOCK(cs_netmon);
         for (auto& node : vNetNodes){
             for (CPeer& peer : node->vPeers)
                 if(peer.addr == addr && peer.addrBind == addrBind) return node;
@@ -353,6 +373,7 @@ public:
     }
 
     CPeer* findPeer(CPeer *p){
+        LOCK(cs_netmon);
         for (auto& node : vNetNodes){
             for (CPeer& peer : node->vPeers){
                 if(peer == *p) 
@@ -365,6 +386,7 @@ public:
     }
 
     CPeer* findPeer2(CPeer p){
+        LOCK(cs_netmon);
         for (auto& node : vNetNodes){
             for (CPeer& peer : node->vPeers){
                 if(peer.isEqual(p)) 
@@ -381,10 +403,11 @@ public:
             p2->node->removePeer(*p2);
         }
 
-        return p.node->removePeer(p);;
+        return p.node->removePeer(p);
     }
 
     bool removeNode(std::string a){ //TODO 151 remove(CNetNode)
+        LOCK(cs_netmon);
         LogPrint(BCLog::NET, "[POC] Removing node: %s\n", a);
         std::vector<CNetNode*>::iterator it = std::find_if(vNetNodes.begin(), vNetNodes.end(), [&](CNetNode *n) {return n->addr==a;});
 
@@ -407,6 +430,7 @@ public:
     }
 
     void GetNodes(std::vector<CNetNode*>& vnetnodes){
+        LOCK(cs_netmon);
         vnetnodes.clear();
         //{
         //LOCK(cs_vNetNodes);

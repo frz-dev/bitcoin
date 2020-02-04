@@ -83,6 +83,7 @@ void CNetMon::sendAlert(CPeer *peer, std::string type){
 
     if(type != "unverified")
         g_netmon->removePeer(*peer);
+LogPrint(BCLog::NET, "[POC] DEBUG: Remove OK\n");
 
     //TODO: decrease reputation of nodes that keep claiming unverified connections
 }

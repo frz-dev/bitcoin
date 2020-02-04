@@ -3295,22 +3295,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     //TODO: remove from node only? and keep checking when receiving peers
                     //node->removePeer(&curpeer);
                     g_netmon->removePeer(curpeer);
-
-                    // std::string pa = curpeer.addr;
-                    // std::string pb = curpeer.addrBind;
-
-                    //Remove symmetric
-                    // CPeer *peer2 = g_netmon->findPeer2(&curpeer);
-                    // if (peer2)
-                    // {
-                    //     CNetNode *node2 = peer2->node;
-                    //     if(node2){ 
-                    //         LogPrint(BCLog::NET, "[POC] Removing symmmetric peer %s-%s\n", pb, pa);
-                    //         bool ret = node2->removePeer(peer2);
-                    //         if(!ret) LogPrint(BCLog::NET, "[POC] ERROR: removePeer(%s) failed\n",pb);
-                    //     }
-                    // }                    
-                    // else LogPrint(BCLog::NET, "[POC] ERROR: couldn't find peer %s-%s\n", pb, pa);
                 }
             }
 
@@ -4040,27 +4024,29 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
 
                 //For each peer, check if their poc timeout expired
                 for (CPeer& peer : node->vPeers){
-                    //Check if poc timeout expired
-                    if(peer.poc && !peer.poc->fVerified && peer.poc->timeout!=0 && peer.poc->timeout<nNow){
-                        //Send ALERT
-                        LogPrint(BCLog::NET, "[POC] poc (%d) timeout expired, sending ALERT\n", peer.poc->id);
-
-                        std::string type("poc");
-                        g_netmon->sendAlert(&peer, type);
-
-                        //Set fVerified = false;
-                        peer.poc->timeout = 0;
-                        peer.fVerified = false;
-                    }
-                    else{
-                        if(!peer.fVerified && peer.timeout!=0 && peer.timeout<nNow){
+                    if(!peer.fVerified){
+                        //Check if poc timeout expired
+                        if(peer.poc && !peer.poc->fVerified && peer.poc->timeout!=0 && peer.poc->timeout<nNow){
                             //Send ALERT
-                            LogPrint(BCLog::NET, "[POC] verification time timeout expired: %s, sending ALERT\n", peer.addr);
+                            LogPrint(BCLog::NET, "[POC] poc (%d) timeout expired, sending ALERT\n", peer.poc->id);
 
-                            std::string type("unverified");
+                            //Set fVerified = false;
+                            peer.poc->timeout = 0;
+                            peer.fVerified = false;
+
+                            std::string type("poc");
                             g_netmon->sendAlert(&peer, type);
+                        }
+                        else{
+                            if(peer.timeout!=0 && peer.timeout<nNow){
+                                //Send ALERT
+                                LogPrint(BCLog::NET, "[POC] verification timeout expired: %s, sending ALERT\n", peer.addr);
 
-                            peer.timeout = 0;
+                                peer.timeout = 0;
+
+                                std::string type("unverified");
+                                g_netmon->sendAlert(&peer, type);
+                            }
                         }
                     }
                 }
