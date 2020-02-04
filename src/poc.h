@@ -253,20 +253,6 @@ public:
         return nullptr;
     }
 
-    bool removePeer(std::string a,std::string aB){
-        LOCK(cs_peers);
-        std::vector<CPeer>::iterator it = std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer p) {
-            return p.addr==a && p.addrBind==aB;
-        });
-
-        if ( it != vPeers.end() ){
-            vPeers.erase(it);
-            return true;
-        }
-
-        return false;
-    }
-
     bool removePeer(CPeer p){
 LogPrint(BCLog::NET, "[POC] DEBUG: removing peer (%s,%s)\n",p.addr,p.addrBind);
         LOCK(cs_peers);
