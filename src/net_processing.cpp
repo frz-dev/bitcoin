@@ -2056,23 +2056,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             pfrom->fDisconnect = true;
         }
 
-        /*POC: VERACK: Send GETPEERS*/
-        if(g_netmon){
-            //Filter peers running our POC client
-            if (pfrom->cleanSubVer == strSubVersion){
-                //Add node
-                if(!pfrom->netNode){
-                    pfrom->netNode = g_netmon->addNode(pfrom->addr.ToString(), pfrom);
-                }
-
-                //Send GETPEERS
-                connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETPEERS));
-                pfrom->nNextPocUpdate = PoissonNextSend(GetTimeMicros(), AVG_POC_UPDATE_INTERVAL);
-            }
-            else LogPrint(BCLog::NET, "[POC]: Client mismatch: pfrom=%s , strSubVersion=%s\n",pfrom->cleanSubVer, strSubVersion);         
-        }
-        /**/
-
         return true;
     }
 
@@ -3073,6 +3056,24 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // return very quickly.
             connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::PONG, nonce));
         }
+
+        /*POC: VERACK: Send GETPEERS*/
+        if(g_netmon && !pfrom->netNode){
+            //Filter peers running our POC client
+            if (pfrom->cleanSubVer == strSubVersion){
+                //Add node
+                if(!pfrom->netNode){
+                    pfrom->netNode = g_netmon->addNode(pfrom->addr.ToString(), pfrom);
+                }
+
+                //Send GETPEERS
+                connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETPEERS));
+                pfrom->nNextPocUpdate = PoissonNextSend(GetTimeMicros(), AVG_POC_UPDATE_INTERVAL);
+            }
+            else LogPrint(BCLog::NET, "[POC]: Client mismatch: pfrom=%s , strSubVersion=%s\n",pfrom->cleanSubVer, strSubVersion);         
+        }
+        /**/
+
         return true;
     }
 
@@ -3592,7 +3593,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 return false;
             }
         }
-        
+
         //Check if the addrBind is correct
         if(ppeer->addrBind.ToString() != ourBind){
             LogPrint(BCLog::NET, "[POC] WARNING: peer found but connection is incorrect\n");
