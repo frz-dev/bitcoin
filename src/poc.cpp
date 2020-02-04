@@ -60,7 +60,7 @@ void CNetMon::sendAlert(CPeer *peer, std::string type){
     LogPrint(BCLog::NET, "[POC] Sending \"ALERT\": type=%s, a1=%s, a2=%s\n", alert.type, alert.addr1, alert.addr2);
 
     //Send to node A
-    if(!peer->node) LogPrint(BCLog::NET, "[POC] ERROR !peer->node\n");
+    //if(!peer->node) LogPrint(BCLog::NET, "[POC] ERROR !peer->node\n");
     CNode *pA;
     if(peer->node)
         pA = peer->node->getCNode();

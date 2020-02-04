@@ -3393,7 +3393,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     else{ //If not fully connected, let's postpone
                         LogPrint(BCLog::NET, "[POC] Postponing POC\n");
                         if(!ppeer) LogPrint(BCLog::NET, "[POC] ERROR: !ppeer\n");
-                        ppeer->vPocsToSend.push_back(poc);
+                        else
+                            ppeer->vPocsToSend.push_back(poc);
                     }
                 }
             }//for(CPeer& peer : vPeers)
@@ -3404,7 +3405,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 //LogPrint(BCLog::NET, "[POC] DEBUG: Peers updated\n");
 
             /* Double check peers from other nodes */
-            if(!node){ LogPrint(BCLog::NET, "[POC] ERROR: !node\n"); } 
             for(CPeer& pToCheck : node->vPeersToCheck){
                 LogPrint(BCLog::NET, "[POC] Double-checking peer %s-%s\n",pToCheck.addr,pToCheck.addrBind);
                 bool checked = false;
@@ -3477,7 +3477,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         peer2->fVerified=true;
                         peer2->poc=peer->poc;
                     }
-                    else LogPrint(BCLog::NET, "[POC] ERROR: Peer2 %s-%s not found\n", peer->addrBind,peer->addr);
+                    else LogPrint(BCLog::NET, "[POC] WARNING: Peer2 %s-%s not found\n", peer->addrBind,peer->addr);
                     
                     //TODO send CONFIRMPEER?
                 }
@@ -3592,6 +3592,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 return false;
             }
         }
+        
         //Check if the addrBind is correct
         if(ppeer->addrBind.ToString() != ourBind){
             LogPrint(BCLog::NET, "[POC] WARNING: peer found but connection is incorrect\n");

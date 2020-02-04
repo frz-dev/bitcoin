@@ -202,15 +202,16 @@ public:
     }
 
     void replacePeers(std::vector<CPeer> newvPeers){
-        //Keep old peer.fVerified state
+        LOCK(cs_peers);
+
+        //Keep old peer.fVerified state so the peers keeps verified while waiting for the new poc to complete
         for (CPeer& newpeer : newvPeers){
             CPeer *peer = findPeer(newpeer);
             if(peer)
                 newpeer.fVerified = peer->fVerified;
         }
 
-        LOCK(cs_peers);
-        //? delete vPeers;
+        vPeers.clear();
         vPeers = newvPeers;
     }
 
@@ -254,14 +255,17 @@ public:
     }
 
     bool removePeer(CPeer p){
-LogPrint(BCLog::NET, "[POC] DEBUG: removing peer (%s,%s)\n",p.addr,p.addrBind);
         LOCK(cs_peers);
+
+        if(vPeers.empty()) return false;
+
         std::vector<CPeer>::iterator it = std::find_if(vPeers.begin(), vPeers.end(), [&](CPeer peer) {
             return peer==p;
         });
 //        LogPrint(BCLog::NET, "[POC] DEBUG: removePeer1\n");
 
-        if (!vPeers.empty() && it != vPeers.end() ){
+        if (it != vPeers.end() ){
+LogPrint(BCLog::NET, "[POC] DEBUG: removing peer (%s,%s)\n",p.addr,p.addrBind);
 //            LogPrint(BCLog::NET, "[POC] DEBUG: removePeer2\n");
             vPeers.erase(it);
 //            LogPrint(BCLog::NET, "[POC] DEBUG: removePeer3\n");
@@ -299,8 +303,8 @@ LogPrint(BCLog::NET, "[POC] DEBUG: removing peer (%s,%s)\n",p.addr,p.addrBind);
 class CNetMon
 {
 private:
-    CCriticalSection cs_netmon;
-    std::vector<CNetNode*> vNetNodes GUARDED_BY(cs_netmon);
+    CCriticalSection cs_netnodes;
+    std::vector<CNetNode*> vNetNodes GUARDED_BY(cs_netnodes);
 
     void setMaxTimeout();
 
@@ -310,7 +314,9 @@ public:
     }
 
     CNetNode* addNode(std::string addr, CNode *cnode){
-        LOCK(cs_netmon);
+        if(addr.empty() || !cnode) return NULL;
+
+        LOCK(cs_netnodes);
 //LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
         for(auto& node : vNetNodes)
             if(node->addr == addr){
@@ -318,13 +324,14 @@ public:
                 return node;
             }
 
+        //Create new NetNode
         CNetNode *node = new CNetNode(addr, cnode);
         vNetNodes.push_back(node);
         return node;
     }
 
     CNetNode* getNode(std::string addr){
-        LOCK(cs_netmon);
+        LOCK(cs_netnodes);
         for (auto& node : vNetNodes){
             if(node->addr == addr) return node;
         }
@@ -332,7 +339,7 @@ public:
     }
 
     CNetNode* findInboundPeer(std::string addr){
-        LOCK(cs_netmon);
+        LOCK(cs_netnodes);
         for (auto& node : vNetNodes){
             for (CPeer& peer : node->vPeers)
                 if(peer.addrBind == addr) return node;
@@ -342,7 +349,7 @@ public:
     }    
 
     CNetNode* findNodeByPeer(std::string addr, std::string addrBind){
-        LOCK(cs_netmon);
+        LOCK(cs_netnodes);
         for (auto& node : vNetNodes){
             for (CPeer& peer : node->vPeers)
                 if(peer.addr == addr && peer.addrBind == addrBind) return node;
@@ -359,7 +366,7 @@ public:
     }
 
     CPeer* findPeer(CPeer *p){
-        LOCK(cs_netmon);
+        LOCK(cs_netnodes);
         for (auto& node : vNetNodes){
             for (CPeer& peer : node->vPeers){
                 if(peer == *p) 
@@ -372,7 +379,7 @@ public:
     }
 
     CPeer* findPeer2(CPeer p){
-        LOCK(cs_netmon);
+        LOCK(cs_netnodes);
         for (auto& node : vNetNodes){
             for (CPeer& peer : node->vPeers){
                 if(peer.isEqual(p)) 
@@ -393,7 +400,7 @@ public:
     }
 
     bool removeNode(std::string a){ //TODO 151 remove(CNetNode)
-        LOCK(cs_netmon);
+        LOCK(cs_netnodes);
         LogPrint(BCLog::NET, "[POC] Removing node: %s\n", a);
         std::vector<CNetNode*>::iterator it = std::find_if(vNetNodes.begin(), vNetNodes.end(), [&](CNetNode *n) {return n->addr==a;});
 
@@ -416,17 +423,13 @@ public:
     }
 
     void GetNodes(std::vector<CNetNode*>& vnetnodes){
-        LOCK(cs_netmon);
+        LOCK(cs_netnodes);
         vnetnodes.clear();
-        //{
-        //LOCK(cs_vNetNodes);
+
         vnetnodes.reserve(vNetNodes.size());
         for (auto pnetnode : vNetNodes) {
-            // vnetnodes.emplace_back();
-            // pnetnode.copyNode(vnetnodes.back());
             vnetnodes.push_back(pnetnode);
         }
-        //}
     }
 
     void sendPoC(CNode *pto, CPoC *poc);
