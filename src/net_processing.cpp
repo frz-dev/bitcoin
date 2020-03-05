@@ -3316,22 +3316,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         peer.fVerified = npeer->fVerified;
                         peer.poc = npeer->poc;
                     }
-                    else{
-                        //TODO: If we don't know this node, try to connect using public peer list 
-                        //avoid this when in regtest mode and try the standard port
-                        // if(!nnode){
-                        //     std::string addr = peer.addr.ToStringIP+GetListenPort().ToString();
-                        //     ppeer = g_netmon->connectNode(addr);
-                        //     if(ppeer){
-                        //         nnode = g_netmon->addNode(ppeer->addr.ToString(), ppeer);
-                        //         ppeer->netNode = nnode;
-                        //     }
-                        // }
-                        
-                        //Add peer to CrossCheck list. How? We don't know peer2
-                        //nnode->vPeersToCheck.push_back(peer);
-                        //save somewhere else?
-                    }
+                    //If we don't know it, we can either wait for it to be connected
+                    //or we can try connecting to all known nodes with that IP
+                    //TODO?
                 }
                 /* outbound */
                 else{
