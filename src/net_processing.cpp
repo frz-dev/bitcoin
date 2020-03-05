@@ -3329,9 +3329,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     //Save to peer
                     peer.poc = poc;
 
-                    //If we already know this peer?
-                    //CPeer *npeer = g_netmon->findPeer(&peer);
-
                     //If we are already connected to peer
                     CNetNode *nnode = g_netmon->getNode(peer.addr);
                     if(nnode){
@@ -3382,7 +3379,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 }
             }//for(CPeer& peer : vPeers)
 
-            //Update peers
+            /* Update peers */
             LogPrint(BCLog::NET, "[POC] Save peers\n");
             node->replacePeers(vPeers);
 //LogPrint(BCLog::NET, "[POC] DEBUG: Peers updated\n");

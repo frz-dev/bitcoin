@@ -15,6 +15,8 @@ class CNetNode;
 class CPeer;
 
 static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
+static const unsigned int MIN_POC_UPDATE_INTERVAL = 1;
+static const unsigned int MAX_POC_UPDATE_INTERVAL = 10;
 static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 10000000;
 
 /* CPoC */
@@ -202,15 +204,49 @@ public:
         vPeers.push_back(p);
     }
 
+    //TODO: name updatePeers; maintain 'history' of connection 
+    //(how long has a connection existed, does it appear/disappear?)
+    //TODO: update instead of replacing (change vector<CPeer> to vector<CPeer*>)
     void replacePeers(std::vector<CPeer> newvPeers){
+        int changes = 0;
+
         LOCK(cs_peers);
+
+        //TODO: check if there are changes in the peer list. If so, update Freq
+        //This makes freq proportional to the number of connections
+        //For every change increase frequency of 1 sec (i.e. decrease nextUpdate by 1, MIN=1)
+        //If
 
         //Keep old peer.fVerified state so the peers keeps verified while waiting for the new poc to complete
         for (CPeer& newpeer : newvPeers){
-            CPeer *peer = findPeer(newpeer);
+            CPeer *peer = findPeer(newpeer); //TODO: use == or change findPeer. a-b is different from b-a
             if(peer)
                 newpeer.fVerified = peer->fVerified;
+            else changes++;
         }
+
+        //Check deleted peers
+        for (CPeer& peer : vPeers){
+            bool found = false;
+            for (CPeer& newpeer : newvPeers){
+                if(newpeer == peer){
+                    found = true;
+                    break;
+                }
+            }
+            if(!found) changes++;
+        }
+
+        /* Update frequency */
+        if(changes>0){
+            updateFreq -= changes;
+
+            if(updateFreq < MIN_POC_UPDATE_INTERVAL)
+                updateFreq = MIN_POC_UPDATE_INTERVAL;
+        }
+        else if(updateFreq < MAX_POC_UPDATE_INTERVAL)
+                updateFreq++;
+        
 
         vPeers.clear();
         vPeers = newvPeers;
@@ -219,7 +255,6 @@ public:
     bool operator==(const CNetNode &node) const {
         return this->addr == node.addr;
     }
-
 
     CPeer* findPeer(CPeer p){
         LOCK(cs_peers);
