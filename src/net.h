@@ -796,6 +796,7 @@ public:
     /*POC*/
     CCriticalSection cs_pocs;
     CNetNode *netNode{NULL};
+    //TODO: move the following to CNetNode
     std::vector<CPoC*> vPocsToSend GUARDED_BY(cs_pocs);
     int64_t nNextPocUpdate {0};
     /**/

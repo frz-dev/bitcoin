@@ -119,11 +119,6 @@ static constexpr unsigned int AVG_FEEFILTER_BROADCAST_INTERVAL = 10 * 60;
 /** Maximum feefilter broadcast delay after significant change. */
 static constexpr unsigned int MAX_FEEFILTER_CHANGE_DELAY = 5 * 60;
 
-/*POC*/
-/** Average delay between peer address broadcasts in seconds. */
-//static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
-/**/
-
 // Internal stuff
 namespace {
     /** Number of nodes with fSyncStarted. */
@@ -3057,7 +3052,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::PONG, nonce));
         }
 
-        /*POC: VERACK: Send GETPEERS*/
+        /*POC: if this is the first PING msg, send GETPEERS*/
         if(g_netmon && !pfrom->netNode){
             //Filter peers running our POC client
             if (pfrom->cleanSubVer == strSubVersion){
@@ -4059,11 +4054,14 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             // Start POC update
             //
             if (pto->nNextPocUpdate < nNow) {
-                LogPrint(BCLog::NET, "[POC] Updating %s\n", pto->addr.ToString());
-                pto->nNextPocUpdate = PoissonNextSend(nNow, AVG_POC_UPDATE_INTERVAL);
+                if(pto->netNode){
+                    LogPrint(BCLog::NET, "[POC] Updating %s\n", pto->addr.ToString());
+                    pto->nNextPocUpdate = PoissonNextSend(nNow, pto->netNode->updateFreq);
 
-                //Ask peers
-                connman->PushMessage(pto, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETPEERS)); 
+                    //Ask peers
+                    connman->PushMessage(pto, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETPEERS)); 
+                }
+
             }
         }
         /**/

@@ -181,9 +181,10 @@ public:
     std::string addr;
     std::vector<CPeer> vPeers GUARDED_BY(cs_peers);
     //TODO: CPeer *
-    //TODO move CPeer info here and make vector<CNetNode> -- how to handle pocId?
+    //? TODO: move CPeer info here and make vector<CNetNode> -- how to handle pocId?
 
     std::vector<CPeer> vPeersToCheck GUARDED_BY(cs_peers);
+    unsigned int updateFreq = {AVG_POC_UPDATE_INTERVAL};
 
     CNetNode(){}
     CNetNode(std::string a, CNode *n){
