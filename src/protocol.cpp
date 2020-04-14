@@ -41,10 +41,8 @@ const char *CMPCTBLOCK="cmpctblock";
 const char *GETBLOCKTXN="getblocktxn";
 const char *BLOCKTXN="blocktxn";
 /*POC: Messages*/
-const char *GETPEERS="getpeers";
-const char *PEERS="peers";
-const char *POCCHALLENGE="pocchallenge";
-const char *POCALERT="pocalert";
+const char *POC="poc";
+const char *VERIFIED="verified";
 /**/
 } // namespace NetMsgType
 
@@ -78,10 +76,8 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETBLOCKTXN,
     NetMsgType::BLOCKTXN,
     /*POC: Message Types*/
-    NetMsgType::GETPEERS,
-    NetMsgType::PEERS,
-    NetMsgType::POCCHALLENGE,
-    NetMsgType::POCALERT,
+    NetMsgType::POC,
+    NetMsgType::VERIFIED,
     /**/
 };
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));

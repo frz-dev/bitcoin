@@ -258,9 +258,7 @@ static UniValue getnetnodesinfo(const JSONRPCRequest& request)
             UniValue opeer(UniValue::VOBJ);
 
             opeer.pushKV("addr", ppeer.addr);
-            opeer.pushKV("bind", ppeer.addrBind);
             opeer.pushKV("inbound", ppeer.fInbound);
-            opeer.pushKV("verified", ppeer.fVerified);
 
             opeers.push_back(opeer);
         }

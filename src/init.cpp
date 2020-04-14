@@ -89,9 +89,7 @@ static constexpr int DUMP_BANS_INTERVAL = 60 * 15;
 std::unique_ptr<CConnman> g_connman;
 std::unique_ptr<PeerLogicValidation> peerLogic;
 std::unique_ptr<BanMan> g_banman;
-/*POC*/
-std::unique_ptr<CNetMon> g_netmon;
-/**/
+std::unique_ptr<CNetMon> g_netmon; /*POC*/
 
 #ifdef WIN32
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for
@@ -545,9 +543,7 @@ void SetupServerArgs()
     gArgs.AddArg("-rpcworkqueue=<n>", strprintf("Set the depth of the work queue to service RPC calls (default: %d)", DEFAULT_HTTP_WORKQUEUE), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::RPC);
     gArgs.AddArg("-server", "Accept command line and JSON-RPC commands", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
 
-    /*POC*/
-    gArgs.AddArg("-pocmon", strprintf("Enable POC monitor mode"), ArgsManager::ALLOW_BOOL, OptionsCategory::OPTIONS);
-    /**/   
+    gArgs.AddArg("-pocmon", strprintf("Enable POC monitor mode"), ArgsManager::ALLOW_BOOL, OptionsCategory::OPTIONS); /*POC*/
 
 #if HAVE_DECL_DAEMON
     gArgs.AddArg("-daemon", "Run in the background as a daemon and accept commands", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);

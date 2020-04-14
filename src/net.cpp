@@ -44,9 +44,7 @@ static_assert(MINIUPNPC_API_VERSION >= 10, "miniUPnPc API version >= 10 assumed"
 
 #include <math.h>
 
-/*POC*/
-#include <poc.h>
-/**/
+#include <poc.h> /*POC*/
 
 // Dump addresses to peers.dat every 15 minutes (900s)
 static constexpr int DUMP_PEERS_INTERVAL = 15 * 60;
@@ -1080,6 +1078,7 @@ void CConnman::DisconnectNodes()
                     /*POC*/
                     if(g_netmon){
                         LogPrint(BCLog::NET, "[POC] DISCONNECTED NODE: %s\n", pnode->addr.ToString());
+                        //If a node disconnects, let's remove it from the topology
                         g_netmon->removeNode(pnode->addr.ToString());
                     }
                     /**/
