@@ -19,6 +19,24 @@ std::string getOurAddr(CNode *p){
     return ouraddr;
 }
 
+std::string getOurAddrIP(CNode *p){
+    CAddress addrBind = p->addrBind;
+    
+    std::string ourIP = addrBind.ToStringIP();
+
+    return ourIP;
+}
+
+void CNetMon::sendMon(CNode *pnode){
+    if(g_netmon){
+        LogPrint(BCLog::NET, "[POC] Sending MON\n");
+        const CNetMsgMaker msgMaker(pnode->GetSendVersion());
+        std::string ouraddr = getOurAddr(pnode);
+        g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::MON, ouraddr));
+    }
+}
+
+
 /* setMaxTimeout */
 void CNetMon::setMaxTimeout(){
     int64_t max_ping=0;
@@ -39,7 +57,7 @@ void CNetMon::setMaxTimeout(){
 // void CNetMon::sendPoC(CNode *pto, CPoC *poc){
 //     const CNetMsgMaker msgMaker(pto->GetSendVersion());
 
-//     CNode* pfrom = g_netmon->getNode(poc->target_addr)->getCNode();
+//     CNode* pfrom = g_netmon->getNetNode(poc->target_addr)->getCNode();
 //     if(!pfrom){ LogPrint(BCLog::NET, "[POC] WARNING: pfrom not found\n"); return;} //TODO: return false
 
 //     //Set timeout
@@ -64,11 +82,13 @@ void CNetMon::setMaxTimeout(){
 
 /* createPoC */
 CPoC * createPoC(CNetNode *ptarget){
+    CNode *pnode = ptarget->getCNode();
     int pocId = rand() % 100000; //TODO get better random number
 
     //Create poc
-    std::string ouraddr = getOurAddr(ptarget->getCNode());
-    CPoC *poc = new CPoC(pocId, ouraddr, ptarget->addr);
+    std::string ouraddr = getOurAddr(pnode);
+    std::string targetaddr = pnode->addr.ToString();
+    CPoC *poc = new CPoC(pocId, ouraddr, targetaddr);
 
     //Set timeout
     //TODO-POC: set timeout as max of last poc round
@@ -77,6 +97,10 @@ CPoC * createPoC(CNetNode *ptarget){
 // LogPrint(BCLog::NET, "[POC] [DBG]: ping (microsecs):%d\n", (int)(ping));
 
     poc->timeout = nNow+MAX_VERIFICATION_TIMEOUT;
+    if(poc->timeout > ptarget->nextPoCRound){
+        LogPrint(BCLog::NET, "[POC] WARNING: pnode is NULL\n");
+        poc->timeout = ptarget->nextPoCRound-1000;
+    }
 
     ptarget->poc = poc;
 
@@ -116,20 +140,23 @@ void CNetMon::startPoCRound(CNode *pnode){
 }
 
 void CNetMon::endPocRound(CNode *pnode){
+    LogPrint(BCLog::NET, "[POC] endPocRound(%s)\n", pnode->GetAddrName());
     CNetNode *netnode = pnode->netNode;
 
     //Delete unverified peers
-    for (CPeer& peer : netnode->vPeers){
-        if(peer.poc->id != netnode->poc->id)
-            netnode->removePeer(peer.addr);
-    }
-
+    // for (CPeer& peer : netnode->vPeers){
+    //     if(peer.poc->id != netnode->poc->id){
+    //         LogPrint(BCLog::NET, "[POC] removing peer %s\n", peer.addr);
+    //         //netnode->removePeer(peer.addr); //TODO: g_netmon->removeConnection
+    //     }
+    // }
+LogPrint(BCLog::NET, "[POC] endPocRound(%s) - CHK1\n");
     //Send VERIFIED
     sendVerified(pnode);
-
+LogPrint(BCLog::NET, "[POC] endPocRound(%s) - CHK2\n");
     //update Freq
     netnode->updateFreq();
-
+LogPrint(BCLog::NET, "[POC] endPocRound(%s) - CHK3\n");
     //Reset timeout
     //node->poc->timeout = 0;
     netnode->poc->fExpired = true;
@@ -156,7 +183,7 @@ void CNetMon::endPocRound(CNode *pnode){
 //     }
 
 //     //Send to node B (if connected)
-//     CNetNode *pBn = g_netmon->findNodeByPeer(peer->addrBind,peer->addr); //getNode(peer->addr);
+//     CNetNode *pBn = g_netmon->findNodeByPeer(peer->addrBind,peer->addr); //getNetNode(peer->addr);
 //     if(pBn){
 //         CNode *pB = pBn->getCNode();
 //         if(pB){

@@ -41,6 +41,8 @@ const char *CMPCTBLOCK="cmpctblock";
 const char *GETBLOCKTXN="getblocktxn";
 const char *BLOCKTXN="blocktxn";
 /*POC: Messages*/
+const char *MON="mon";
+const char *REGISTER="register";
 const char *POC="poc";
 const char *VERIFIED="verified";
 /**/
@@ -76,6 +78,8 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETBLOCKTXN,
     NetMsgType::BLOCKTXN,
     /*POC: Message Types*/
+    NetMsgType::MON,
+    NetMsgType::REGISTER,
     NetMsgType::POC,
     NetMsgType::VERIFIED,
     /**/

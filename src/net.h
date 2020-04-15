@@ -794,11 +794,15 @@ public:
     std::atomic<int> nStartingHeight{-1};
 
     /*POC*/
+    /* Monitor */
     CCriticalSection cs_pocs;
     CNetNode *netNode{NULL};
     //TODO: move the following to CNetNode
     std::vector<CPoC*> vPocsToSend GUARDED_BY(cs_pocs);
     int64_t nNextPocUpdate {0};
+    /* Regular */
+    bool fIsMonitor{false};
+    std::string monAddr;
     /**/
 
     // flood relay

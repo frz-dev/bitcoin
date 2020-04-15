@@ -233,6 +233,17 @@ extern const char *BLOCKTXN;
 
 /*POC*/
 /**
+ * The MON message is sent by the monitor when connecting to a new node
+ * to identify itslef as a monitor.
+ * It includes its public key to recognize its signature in following POC messages.
+ */
+extern const char *MON;
+/**
+ * The REGISTER message is sent by a node to a monitor to register itself.
+ * It include the address and port where the node accepts connections.
+ */
+extern const char *REGISTER;
+/**
  * The poc message is sent to a node to prove its active connections.
  * If the receiver is the node being probed, it will forward the message to all its peers.
  * Otherwise, it will send the message back to the prober.

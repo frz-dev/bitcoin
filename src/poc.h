@@ -18,10 +18,12 @@ class CPeer;
 static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
 static const unsigned int MIN_POC_UPDATE_INTERVAL = 1;
 static const unsigned int MAX_POC_UPDATE_INTERVAL = 10;
-static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 10000000;
+static const int64_t MAX_VERIFICATION_TIMEOUT = 10000;
 
 #define F_INBOUND true
 #define F_OUTBOUND false
+
+std::string getOurAddr(CNode *p);
 
 /* CPoC */
 class CPoC
@@ -33,7 +35,7 @@ public:
 
     //Digital Signature?
     std::atomic<int64_t> timeout{0};
-    std::atomic<int64_t> maxTimeout{0};
+    std::atomic<int64_t> maxTimeout{MAX_VERIFICATION_TIMEOUT};
     bool fExpired {false};
 //    std::string target_addr; //Target ID 
 
@@ -44,12 +46,14 @@ public:
         id = 0;
         monitor = "";
         target = "";
+//        timeout = GetTimeMicros()+maxTimeout;
     };
 
     CPoC(int i, const std::string& m, const std::string& t){
         id = i;
         monitor = m;
         target = t;
+//        timeout = GetTimeMicros()+maxTimeout;
     };
 
     /* Updates PoC */
@@ -369,11 +373,11 @@ private:
 
 public:
     CNetMon(){
-        setMaxTimeout();
+        //setMaxTimeout();
     }
 
     /* Find node by addr */
-    CNetNode* getNode(std::string addr){
+    CNetNode* getNetNode(std::string addr){
         LOCK(cs_netnodes);
         for (auto& node : vNetNodes){
             if(node->addr == addr) return node;
@@ -418,7 +422,7 @@ LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
         if(fInbound)
             return findInboundPeer(addr);
         else 
-            return getNode(addr);
+            return getNetNode(addr);
     }
 
     CPeer* findPeer(CPeer *p){
@@ -493,6 +497,7 @@ LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
         }
     }
 
+    void sendMon(CNode *pnode);
     void startPoCRound(CNode *pto);
     void endPocRound(CNode *pnode);
     //void sendVerified(CNode *pto);
