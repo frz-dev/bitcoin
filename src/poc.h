@@ -15,10 +15,10 @@ class CNode;
 class CNetNode;
 class CPeer;
 
-static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
+static const unsigned int AVG_POC_UPDATE_INTERVAL = 1;
 static const unsigned int MIN_POC_UPDATE_INTERVAL = 1;
-static const unsigned int MAX_POC_UPDATE_INTERVAL = 10;
-static const int64_t MAX_VERIFICATION_TIMEOUT = 10000;
+static const unsigned int MAX_POC_UPDATE_INTERVAL = 5;
+static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 100000; //0.1sec
 
 #define F_INBOUND true
 #define F_OUTBOUND false
@@ -46,14 +46,14 @@ public:
         id = 0;
         monitor = "";
         target = "";
-//        timeout = GetTimeMicros()+maxTimeout;
+        timeout = GetTimeMicros()+maxTimeout;
     };
 
     CPoC(int i, const std::string& m, const std::string& t){
         id = i;
         monitor = m;
         target = t;
-//        timeout = GetTimeMicros()+maxTimeout;
+        timeout = GetTimeMicros()+maxTimeout;
     };
 
     /* Updates PoC */
@@ -186,7 +186,8 @@ class CNetNode
 private:
     CNode *cnode;
     CCriticalSection cs_peers;
-    int changes {0};
+    int pocChanges {0};
+    int freqChanges {0};
 
 public:
     std::string addr;
@@ -199,7 +200,7 @@ public:
     
     //PoC//
     CPoC *poc{NULL};
-    unsigned int nextPoCRound = {AVG_POC_UPDATE_INTERVAL};
+    unsigned int pocUpdateInterval = {AVG_POC_UPDATE_INTERVAL};
 
     //Methods//
     CNetNode(){}
@@ -217,24 +218,35 @@ public:
         LOCK(cs_peers);
         vPeers.push_back(p);
 
-        changes++;
+        pocChanges++;
     }
 
-    void addPeer(std::string addr, bool i){
+    void addPeer(std::string addr, bool i, CPoC *poc){
         CPeer p(addr, this, i);
-
+        p.poc = poc;
         addPeer(p);
     }
 
     void updateFreq(void){
-        if(changes > 0){
-            nextPoCRound -= changes;
+        if(pocChanges > 0)
+            freqChanges ++;
+        else freqChanges--;
 
-            if(nextPoCRound < MIN_POC_UPDATE_INTERVAL)
-                nextPoCRound = MIN_POC_UPDATE_INTERVAL;
+        if(freqChanges > 5){
+            pocUpdateInterval--;
+
+            if(pocUpdateInterval < MIN_POC_UPDATE_INTERVAL)
+                pocUpdateInterval = MIN_POC_UPDATE_INTERVAL;
+
+            freqChanges = 0;
         }
-        else if(nextPoCRound < MAX_POC_UPDATE_INTERVAL)
-                nextPoCRound++;
+        else if(freqChanges < -5){
+            if(pocUpdateInterval < MAX_POC_UPDATE_INTERVAL)
+                pocUpdateInterval++;
+
+            freqChanges = 0;
+        }
+        pocChanges = 0;
     }
 
 
@@ -331,7 +343,7 @@ LogPrint(BCLog::NET, "[POC] DEBUG: removing peer (%s)\n", addr);
             vPeers.erase(it);
             //vPeers.shrink_to_fit();
 
-            changes++;
+            pocChanges++;
             return true;
         }
 
@@ -451,13 +463,20 @@ LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
     // }
 
     bool removeConnection(CPeer p){
-        //Delete symmetric, if present
-        // CPeer *p2 = findPeer2(p);
-        // if(p2){
-        //     p2->node->removePeer(*p2);
-        // }
+        bool ret;
 
-        return p.node->removePeer(p.addr);
+        ret = p.node->removePeer(p.addr);
+        if(!ret) LogPrint(BCLog::NET, "[POC] WARNING: peer %s of %s not removed\n", p.addr, p.node->addr);
+
+        //Delete symmetric
+        CNetNode *n2 = getNetNode(p.addr);
+        if(n2){
+            n2->removePeer(p.node->addr);
+            if(!ret) LogPrint(BCLog::NET, "[POC] WARNING: peer %s of %s not removed\n", p.node->addr, p.addr);
+        }
+        else LogPrint(BCLog::NET, "[POC] WARNING: could not find netnode %s\n", p.addr);
+
+        return true;
     }
 
     bool removeNode(std::string a){ //TODO 151 remove(CNetNode)

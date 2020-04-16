@@ -3421,7 +3421,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     if (strCommand == NetMsgType::POC) {
         CPoC poc;
         vRecv >> poc;
-        LogPrint(BCLog::NET, "[POC] Received \"POC\" from %s (bind: %s): \n                     [POC] id=%d|target:%s|monitor:%s\n", pfrom->addr.ToString(), pfrom->addrBind.ToStringPort(), poc.id, poc.target, poc.monitor);
+        LogPrint(BCLog::NET, "[POC] Received \"POC\" from %s: \n                     [POC] id=%d|target:%s|monitor:%s\n", pfrom->addr.ToString(), poc.id, poc.target, poc.monitor);
 
         //TODO-POC: check monitor's signature
    
@@ -3433,7 +3433,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
             //Update NetState
             if(g_netmon){
-                LogPrint(BCLog::NET, "[POC] CHECKPOINT 1\n");
                 //Get pfrom NetNode
                 CNetNode *cnode = pfrom->netNode;
                 if(!cnode){
@@ -3445,38 +3444,47 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 CNetNode *pfromN = pfrom->netNode;
                 CNetNode *target = g_netmon->getNetNode(poc.target);
                 if(target){
-LogPrint(BCLog::NET, "[POC] CHECKPOINT 2\n");
                     //Is PoC valid?
-                    if(target->poc->id != poc.id)
+                    if(target->poc->id != poc.id){
+                        LogPrint(BCLog::NET, "[POC] WARNING: invalid POC\n");
                         return false;
-LogPrint(BCLog::NET, "[POC] CHECKPOINT 3\n");
+                    }
+
                     //Has it expired?
-                    if(target->poc->fExpired)
+                    if(target->poc->fExpired){
+                        LogPrint(BCLog::NET, "[POC] WARNING: POC has expired\n");
                         return false;
-LogPrint(BCLog::NET, "[POC] CHECKPOINT 4\n");
+                    }
+
                     //Did we receive POC on time?
                     // int64_t nNow = GetTimeMicros();
                     // int64_t delay = (target->poc->timeout - nNow);
                     // LogPrint(BCLog::NET, "[POC] POC arrived %d microseconds %s timeout\n", (int)delay, (delay>0)?"before":"after" );
 
-                    //Do we know this connection?
                     std::string paddr = pfrom->GetAddrName();
+
+                    LogPrint(BCLog::NET, "[POC] VERIFIED %s->%s\n", paddr, target->addr);
+                    
+                    //Do we know this connection?
                     CPeer *peer = target->getPeer(paddr);
 
                     //If so, let's update it
                     if(peer){
+                        LogPrint(BCLog::NET, "[POC] Updating connection\n");
+
                         peer->poc = target->poc;
-                        //peer->fVerified = true;
+                        CPeer *peer2 = pfromN->getPeer(target->addr);
+                        if(peer2) peer2->poc = target->poc;
                     }
                     //Otherwise, let's create it
                     else{
-                        //CPeer *peer2 = target->getPeer(paddr);
+                        LogPrint(BCLog::NET, "[POC] Creating connection\n");
 
-                        target->addPeer(paddr, F_INBOUND);
-                        pfromN->addPeer(target->addr, F_OUTBOUND);
+                        target->addPeer(paddr, F_INBOUND, target->poc);
+                        pfromN->addPeer(target->addr, F_OUTBOUND, target->poc);
                     }
 
-                    LogPrint(BCLog::NET, "[POC] VERIFIED %s->%s\n", paddr, target->addr);
+                    
                     
                     //TODO-POC: add inbound symmetric?
                     // //Check inbound peer as verified too
@@ -3573,8 +3581,6 @@ LogPrint(BCLog::NET, "[POC] CHECKPOINT 4\n");
 
             }
         }
-
-        LogPrint(BCLog::NET, "[POC] CHECKPOINT\n");
         
         return true;
     }
@@ -4086,13 +4092,20 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             //
             // Start POC round
             //
-            if (pto->nNextPocUpdate < nNow) {
+            if (pto->nNextPoCRound < nNow) {
                 if(pto->netNode){
                     //Start new PoC round
-                    LogPrint(BCLog::NET, "[POC] Starting PoC round for %s\n", pto->addr.ToString());
                     g_netmon->startPoCRound(pto);
-                    //Set next update
-                    pto->nNextPocUpdate = PoissonNextSend(nNow, pto->netNode->nextPoCRound);
+                }
+
+                /* Set next PoC round */
+                pto->nNextPoCRound = PoissonNextSend(nNow, pto->netNode->pocUpdateInterval);
+
+                //Next PoC round should be after timeout
+                int64_t timeout = pto->netNode->poc->timeout;
+                if(pto->nNextPoCRound < timeout){
+                    LogPrint(BCLog::NET, "[POC] WARNING: nNextPoCRound < timeout. Adjusting next PoC round \n");
+                    pto->nNextPoCRound = timeout+100000;
                 }
 
             }

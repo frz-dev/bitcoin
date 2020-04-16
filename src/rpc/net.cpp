@@ -215,6 +215,7 @@ static UniValue getpeerinfo(const JSONRPCRequest& request)
 /*POC*/
 static UniValue getnetnodesinfo(const JSONRPCRequest& request)
 {
+    LogPrint(BCLog::NET, "[POC] getnetnodesinfo\n");
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
             RPCHelpMan{"getnetnodesinfo",
@@ -243,10 +244,10 @@ static UniValue getnetnodesinfo(const JSONRPCRequest& request)
 
     if(!g_netmon)
         throw JSONRPCError(RPC_CLIENT_POCMON_DISABLED, "Error: POC functionality missing or disabled");
-LogPrint(BCLog::NET, "[POC] CHECKPOINT 01\n");
+
     std::vector<CNetNode*> vnetnodes;
     g_netmon->GetNodes(vnetnodes);
-LogPrint(BCLog::NET, "[POC] CHECKPOINT 02\n");
+
     UniValue ret(UniValue::VARR);
 
     for (auto pnetnode : vnetnodes) {
