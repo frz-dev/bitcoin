@@ -3409,11 +3409,16 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     if (strCommand == NetMsgType::MON) {
         LogPrint(BCLog::NET, "[POC] Received \"MON\" from %s\n ", pfrom->addr.ToString());
 
+        //TODO: verify identity
+
         std::string monAddr;
         vRecv >> monAddr;
 
         pfrom->fIsMonitor = true;
         pfrom->monAddr = monAddr;
+
+        //Remove monitor from g_verified
+        removeVerified(pfrom->GetAddrName());
 
         return true;
     }
@@ -3442,28 +3447,21 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
                 //Get target NetNode
                 CNetNode *pfromN = pfrom->netNode;
-                CNetNode *target = g_netmon->getNetNode(poc.target);
+                CNetNode *target = g_netmon->getNetNodeByPoC(poc.id);
                 if(target){
-                    //Is PoC valid?
-                    if(target->poc->id != poc.id){
-                        LogPrint(BCLog::NET, "[POC] WARNING: invalid POC\n");
-                        return false;
-                    }
-
                     //Has it expired?
                     if(target->poc->fExpired){
                         LogPrint(BCLog::NET, "[POC] WARNING: POC has expired\n");
+
+                        // int64_t delay = (target->poc->timeout - GetTimeMicros());
+                        // LogPrint(BCLog::NET, "[POC] POC arrived %d microseconds %s timeout\n", (int)delay, (delay>0)?"before":"after" );
+
                         return false;
                     }
 
-                    //Did we receive POC on time?
-                    // int64_t nNow = GetTimeMicros();
-                    // int64_t delay = (target->poc->timeout - nNow);
-                    // LogPrint(BCLog::NET, "[POC] POC arrived %d microseconds %s timeout\n", (int)delay, (delay>0)?"before":"after" );
-
                     std::string paddr = pfrom->GetAddrName();
 
-                    LogPrint(BCLog::NET, "[POC] VERIFIED %s->%s\n", paddr, target->addr);
+                    LogPrint(BCLog::NET, "[POC] VERIFIED %s->%s\n", target->addr, paddr);
                     
                     //Do we know this connection?
                     CPeer *peer = target->getPeer(paddr);
@@ -3480,20 +3478,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     else{
                         LogPrint(BCLog::NET, "[POC] Creating connection\n");
 
-                        target->addPeer(paddr, F_INBOUND, target->poc);
-                        pfromN->addPeer(target->addr, F_OUTBOUND, target->poc);
+                        target->addPeer(paddr, F_OUTBOUND, target->poc);
+                        pfromN->addPeer(target->addr, F_INBOUND, target->poc);
                     }
-
-                    
-                    
-                    //TODO-POC: add inbound symmetric?
-                    // //Check inbound peer as verified too
-                    // CPeer *peer2 = g_netmon->findPeer2(target);
-                    // if(peer2){
-                    //     peer2->fVerified=true;
-                    //     peer2->poc=peer->poc;
-                    // }
-                    // else LogPrint(BCLog::NET, "[POC] WARNING: Peer2 %s-%s not found\n", peer->addrBind,peer->addr);
                 }
                 //TODO else ?
             }
@@ -3518,8 +3505,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 for (const CNodeStats& stats : vstats){
                     paddr = stats.addrName;
                     
-                    //If inbound and reachable
-                    if(stats.fInbound && IsReachable(stats.addr)){ //TODO-POC && IsReachable()
+                    //If outbound and reachable
+                    if(!stats.fInbound){ //TODO-POC && IsReachable()
                         //get CNode
                         ppeer = g_connman->FindNode(paddr);
 
@@ -3528,13 +3515,26 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                             //send POC
                             LogPrint(BCLog::NET, "[POC] Forwarding POC to %s\n", ppeer->addr.ToString());
                             g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POC, poc)); //? vRecv == msgMaker.Make(NetMsgType::POC, poc) ?
+
+                            //Set PoC in g_verified
+                            for (auto& v : g_verified){
+                                if(v.addr == ppeer->GetAddrName()) {
+                                    v.setPoC(poc.monitor, poc.id);
+                                    //v.fVerified[poc.monitor].pocId = poc.id;
+                                    break;
+                                }
+                            }
                         }
                     }
                }
             }//if(target)
 
             /* If we are the target's peer, let's forward POC to the monitor */
-            else if(fromAddr == poc.target){
+            else 
+            //only accept POC from inbound peers with the target's IP
+            if(pfrom->addr.ToStringIP() == poc.target && pfrom->fInbound){ 
+                LogPrint(BCLog::NET, "[POC] We are the target's peer. Let's send POC to the monitor\n");
+
                 // Are we are connected to the monitor?
                 for (const CNodeStats& stats : vstats){
                     CNode *p = g_connman->FindNode(stats.addrName);
@@ -3561,27 +3561,78 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
                 LogPrint(BCLog::NET, "[POC] Forwarding POC to monitor (%s)\n", ppeer->addr.ToString());
                 g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POC, poc));
+
+                for (auto& v : g_verified){
+                    if(v.addr == pfrom->GetAddrName()) {
+                        v.setPoC(poc.monitor, poc.id);
+                        //v.fVerified[poc.monitor].pocId = poc.id;
+                        break;
+                    }
+                }
             }
             /* if we are not the monitor, nor the target, nor a peer of the target ... */            
             else {
                 LogPrint(BCLog::NET, "[POC] WARNING: we're not monitor, nor target, nor target's peer!\n");
-                // 
-                // for (const CNodeStats& stats : vstats){
-                //     paddr = stats.addrName;
-
-                //     if(ourIP == poc.monitor){
-                //         LogPrint(BCLog::NET, "[POC] WARNING MISBEHAVIOR: We are the monitor, but we didn't receive from target!\n");
-                //         return 1;
-                //     }
-                //     if(ourIP == poc.target){
-                //         LogPrint(BCLog::NET, "[POC] WARNING MISBEHAVIOR: We are the target, but we didn't receive from the right peer!\n");
-                //         return 1;
-                //     }
-                // }
-
             }
         }
         
+        return true;
+    }
+
+    if (strCommand == NetMsgType::VERIFIED){
+        if(!pfrom->fIsMonitor){
+            LogPrint(BCLog::NET, "[POC] WARNING: Received \"VERIFIED\" from non-monitor node %s\n", pfrom->GetAddrName());
+            return false;
+        }
+        LogPrint(BCLog::NET, "[POC] Received \"VERIFIED\" from %s\n", pfrom->monAddr);
+
+        //TODO: set g_verified[pfrom].verified = false
+
+        std::vector<CVerified> vVerified;
+        vRecv >> vVerified;
+
+LogPrint(BCLog::NET, "[POC] \"VERIFIED\":");
+        for (const CVerified& vPeer : vVerified){
+LogPrint(BCLog::NET, "[%s (%s) poc:%d], ", vPeer.addr, vPeer.fInbound?"in":"out", vPeer.pocId);
+            for (auto& gPeer : g_verified){
+                //if outbound, compare with addr
+                if(!gPeer.fInbound && gPeer.addr == vPeer.addr){
+                    gPeer.setVerified(pfrom->monAddr);
+                }
+                //if inbound, check poc ID
+                else if(gPeer.fVerified[pfrom->monAddr].pocId == vPeer.pocId){
+                    gPeer.setVerified(pfrom->monAddr);
+                }
+                
+            }
+        }
+LogPrint(BCLog::NET, "\n");
+
+        /* Check if peers are verified by the majority of monitors */
+LogPrint(BCLog::NET, "[POC] \"VPEERS\":\n");
+        //for each peer
+        for (auto& peer : g_verified){
+            int vcount = 0;
+LogPrint(BCLog::NET, "%s(%s):[", peer.addr, peer.fInbound?"in":"out");
+            //count verified
+            for(auto& vmon : peer.fVerified){
+LogPrint(BCLog::NET, "(%s:%d-%s), ", vmon.first, vmon.second.pocId,vmon.second.verified);
+                if(vmon.second.verified) vcount++;
+            }
+LogPrint(BCLog::NET, "]\n");
+
+            //If the peer is not verified by the majority of monitors, let's disconnect
+            if(vcount < (peer.fVerified.size() / 2)){
+                LogPrint(BCLog::NET, "[POC] vcount=%d, disconnecting peer\n", vcount);
+
+                CNode *p = connman->FindNode(peer.addr);
+                if(p)
+                    p->fDisconnect = true;
+            }
+
+        }
+//LogPrint(BCLog::NET, "\n");
+
         return true;
     }
 

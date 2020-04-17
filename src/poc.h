@@ -24,6 +24,7 @@ static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 100000; //0.1sec
 #define F_OUTBOUND false
 
 std::string getOurAddr(CNode *p);
+bool removeVerified(std::string addr);
 
 /* CPoC */
 class CPoC
@@ -89,7 +90,6 @@ public:
     bool fInbound;
 
     CPoC *poc {NULL};
-//    bool fVerified{false};
 
     CPeer(){
         addr = "";
@@ -139,6 +139,60 @@ public:
         X(fInbound);
     }
 #undef X
+};
+
+
+/* CVerified */
+struct pocmon {
+  int pocId = 0;
+  bool verified = false;
+};
+
+class CVerified
+{
+public:
+    std::string addr;
+    bool fInbound;
+    int pocId; //only used in VERIFIED message
+    std::map<std::string, struct pocmon> fVerified;
+
+    CVerified(){}
+
+    CVerified(const std::string& a, bool i){
+        addr = a;
+        fInbound = i;
+        fVerified.clear();
+    }
+
+    CVerified(const std::string& a, bool i, int p){
+        addr = a;
+        fInbound = i;
+        pocId = p;
+        fVerified.clear();
+    }
+
+    void setPoC(std::string mon, int pocId){
+        fVerified[mon].pocId = pocId;
+        fVerified[mon].verified = false;
+    }
+
+    void setVerified(std::string mon){
+        fVerified[mon].verified = true;
+    }
+
+    template <typename Stream>
+    void Serialize(Stream& s) const {
+        s << addr
+          << fInbound
+          << pocId;
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s) {
+        s >> addr
+          >> fInbound
+          >> pocId;
+    }
 };
 
 // /* CPoCAlert */
@@ -362,15 +416,17 @@ LogPrint(BCLog::NET, "[POC] DEBUG: removing peer (%s)\n", addr);
         }
     }
 
-    // void addPeerToCheck(CPeer p){
-    //     LOCK(cs_peers);
-    //     //Avoid duplicates
-    //     for (CPeer peer : vPeersToCheck){
-    //         if(peer == p) return;
-    //     }
+    /* Returns a copy of the node */
+    void GetPeers(std::vector<CPeer>& vp){
+        vp.reserve(vPeers.size());
 
-    //     vPeersToCheck.push_back(p);
-    // }
+        LOCK(cs_peers);        
+        for (auto p : vPeers) {
+            CPeer pcopy;
+            p.copyPeer(pcopy);
+            vp.push_back(pcopy);
+        }
+    }
 };
 
 /* CNetMon */
@@ -393,6 +449,14 @@ public:
         LOCK(cs_netnodes);
         for (auto& node : vNetNodes){
             if(node->addr == addr) return node;
+        }
+        return nullptr;
+    }
+
+    CNetNode* getNetNodeByPoC(int pocId){
+        LOCK(cs_netnodes);
+        for (auto& node : vNetNodes){
+            if(node->poc->id == pocId) return node;
         }
         return nullptr;
     }
@@ -523,8 +587,10 @@ LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
     CNode* connectNode(std::string addr);
     CNode* connectNode(CPeer *peer);
 };
+
 /**/
 
 extern std::unique_ptr<CNetMon> g_netmon;
+extern std::vector<CVerified> g_verified;
 
 #endif // BITCOIN_POC_H

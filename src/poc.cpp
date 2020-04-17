@@ -88,7 +88,7 @@ CPoC * createPoC(CNetNode *ptarget){
 
     //Create poc
     std::string ouraddr = getOurAddr(pnode);
-    std::string targetaddr = pnode->addr.ToString();
+    std::string targetaddr = pnode->addr.ToStringIP();
     CPoC *poc = new CPoC(pocId, ouraddr, targetaddr);
 
     //Set timeout as the maxtimeout seen in last poc round
@@ -111,6 +111,25 @@ CPoC * createPoC(CNetNode *ptarget){
 
 /* sendVerified */
 void sendVerified(CNode *pto){
+    //Retrieve peer list
+    std::vector<CVerified> vVerified;
+    
+    for (const CPeer& peer : pto->netNode->vPeers){
+        vVerified.push_back(CVerified(peer.addr, peer.fInbound, peer.poc->id));
+    } 
+
+// LogPrint(BCLog::NET, "[POC] \"VERIFIED\":");
+// for (const CPeer& peer : vVerified){
+//     LogPrint(BCLog::NET, "(%s,%s) ", peer.addr, peer.fInbound?"inbound":"outbound");
+// }
+// LogPrint(BCLog::NET, "\n");
+
+
+    //Send VERIFIED message
+    LogPrint(BCLog::NET, "[POC] Sending VERIFIED to %s\n", pto->GetAddrName());
+    const CNetMsgMaker msgMaker(pto->GetSendVersion());
+    g_connman->PushMessage(pto, msgMaker.Make(NetMsgType::VERIFIED, vVerified));
+
     return;
 }
 
@@ -223,4 +242,22 @@ CNode* CNetMon::connectNode(CPeer *peer){
     // }
 
     return ppeer;
+}
+
+bool removeVerified(std::string addr){
+    std::vector<CVerified>::iterator it = std::find_if(g_verified.begin(), g_verified.end(), [&](CVerified n) {
+        return n.addr==addr;
+    });
+    
+    if ( it != g_verified.end() ){
+        LogPrint(BCLog::NET, "[POC] Removing CVerified: %s\n", addr);
+        //Delete object and shrink vector
+        g_verified.erase(it);
+        g_verified.shrink_to_fit();
+
+        return true;
+    }
+
+    return false;
+
 }

@@ -1,5 +1,23 @@
 
+DOING
+[X] remove disconnected from g_verified
+[X] exclude monitor from g_verified
+ 
+
+HIGH
+
+LOW
+[ ] change fVerified[mon] to fVerified[pocId] ?
+
+PAPER
+[ ] menzionare che nodi riconoscono verified peers da name se outbound, e da poc se inbound
+
+**********************************************************************
 HIGH PRIORITY
+[X] Regular nodes: set pocid into CVerified when received from peer
+[ ] Make g_verified a std::map
+[X] Forward POC to outbound peers
+
 [ ] Set MAX_VERIFICATION_TIMEOUT to max seen ping
 [ ] unverified (timeout)
 [ ] TODO12

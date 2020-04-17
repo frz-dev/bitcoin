@@ -800,6 +800,7 @@ public:
     //TODO: move the following to CNetNode
     std::vector<CPoC*> vPocsToSend GUARDED_BY(cs_pocs);
     int64_t nNextPoCRound {0};
+    
     /* Regular */
     bool fIsMonitor{false};
     std::string monAddr;

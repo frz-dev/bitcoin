@@ -90,6 +90,7 @@ std::unique_ptr<CConnman> g_connman;
 std::unique_ptr<PeerLogicValidation> peerLogic;
 std::unique_ptr<BanMan> g_banman;
 std::unique_ptr<CNetMon> g_netmon; /*POC*/
+std::vector<CVerified> g_verified; /*POC*/
 
 #ifdef WIN32
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for

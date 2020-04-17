@@ -447,6 +447,12 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addrConnect, CalculateKeyedNetGroup(addrConnect), nonce, addr_bind, pszDest ? pszDest : "", false, block_relay_only);
     pnode->AddRef();
 
+    /*POC*/
+    //Add CVerified vector for pnode
+    //if(IsReachable(pnode->addr)) pnode->addr.IsRoutable()
+    g_verified.push_back(CVerified(pnode->GetAddrName(), pnode->fInbound));
+    /**/
+
     return pnode;
 }
 
@@ -1007,6 +1013,10 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     }
     CNode* pnode = new CNode(id, nodeServices, GetBestHeight(), hSocket, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind, "", true);
     pnode->AddRef();
+    /*POC*/
+    //Add CVerified vector for pnode
+    g_verified.push_back(CVerified(pnode->GetAddrName(), pnode->fInbound));
+    /**/
     pnode->m_permissionFlags = permissionFlags;
     // If this flag is present, the user probably expect that RPC and QT report it as whitelisted (backward compatibility)
     pnode->m_legacyWhitelisted = legacyWhitelisted;
@@ -1076,11 +1086,25 @@ void CConnman::DisconnectNodes()
                 }
                 if (fDelete) {
                     /*POC*/
+                    LogPrint(BCLog::NET, "[POC] DISCONNECTED NODE: %s\n", pnode->addr.ToString());
                     if(g_netmon){
-                        LogPrint(BCLog::NET, "[POC] DISCONNECTED NODE: %s\n", pnode->addr.ToString());
                         //If a node disconnects, let's remove it from the topology
                         g_netmon->removeNode(pnode->addr.ToString());
                     }
+                    else{
+                        removeVerified(pnode->GetAddrName());
+                        // std::vector<CVerified>::iterator it = std::find_if(g_verified.begin(), g_verified.end(), [&](CVerified n) {
+                        //     return n.addr==pnode->addr.ToString();
+                        // });
+                        
+                        // if ( it != g_verified.end() ){
+                        //     LogPrint(BCLog::NET, "[POC] Removing CVerified: %s\n", pnode->addr.ToString());
+                        //     //Delete object and shrink vector
+                        //     g_verified.erase(it);
+                        //     g_verified.shrink_to_fit();
+                        // }
+                    }
+                    
                     /**/
                     vNodesDisconnected.remove(pnode);
                     DeleteNode(pnode);
