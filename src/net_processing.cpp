@@ -3740,7 +3740,7 @@ LogPrint(BCLog::NET, "]\n");
             LogPrint(BCLog::NET, "[POC] reputation of %s = %d \n", peer.addr, tot_rep);
             if((!peer.fInbound && tot_rep < thresholdOut) || (peer.fInbound && tot_rep < thresholdIn)){
                 int threshold = peer.fInbound ? thresholdIn : thresholdOut;
-                LogPrint(BCLog::NET, "[POC] reputation=%d (thr:%d), disconnecting %s\n", tot_rep, threshold, peer.addr);
+                LogPrint(BCLog::NET, "[POC] reputation=%d (thr:%d), disconnecting unverified %s\n", tot_rep, threshold, peer.addr);
 
                 CNode *p = connman->FindNode(peer.addr);
                 if(p)
