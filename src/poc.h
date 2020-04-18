@@ -17,7 +17,7 @@ class CPeer;
 
 static const unsigned int AVG_POC_UPDATE_INTERVAL = 1;
 static const unsigned int MIN_POC_UPDATE_INTERVAL = 1;
-static const unsigned int MAX_POC_UPDATE_INTERVAL = 5;
+static const unsigned int MAX_POC_UPDATE_INTERVAL = 3;
 static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 100000; //0.1sec
 static const unsigned int MAX_M_REPUTATION = 10;
 

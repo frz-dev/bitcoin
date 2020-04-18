@@ -3721,21 +3721,25 @@ LogPrint(BCLog::NET, "\n");
 LogPrint(BCLog::NET, "[POC] \"VPEERS\":\n");
         //for each peer
         for (auto& peer : g_verified){
-            int tot_rep = 0;
 
+            //adjust M-reputation
+            if(!peer.fVerified[pfrom->monAddr].verified) peer.fVerified[pfrom->monAddr].reputation--;
+
+            //Calculate total reputation
+            int tot_rep = 0;
 LogPrint(BCLog::NET, "%s(%s):[", peer.addr, peer.fInbound?"in":"out");
-            //adjust reputation
             for(auto& vmon : peer.fVerified){
 LogPrint(BCLog::NET, "(%s:%d-%s-rep:%d), ", vmon.first, vmon.second.pocId,vmon.second.verified,vmon.second.reputation);
-                if(!vmon.second.verified) vmon.second.reputation--;
                 tot_rep+=vmon.second.reputation;
             }
 LogPrint(BCLog::NET, "]\n");
 
             //If reputation goes beyond threshold, let's disconnect
-            int threshold = (g_monitors.size()*MAX_M_REPUTATION / 2);
+            int thresholdIn = (g_monitors.size()*MAX_M_REPUTATION / 3);
+            int thresholdOut = (g_monitors.size()*MAX_M_REPUTATION / 2);
             LogPrint(BCLog::NET, "[POC] reputation of %s = %d \n", peer.addr, tot_rep);
-            if(tot_rep <= threshold){
+            if((!peer.fInbound && tot_rep <= thresholdOut) || (peer.fInbound && tot_rep <= thresholdIn)){
+                int threshold = peer.fInbound ? thresholdIn : thresholdOut;
                 LogPrint(BCLog::NET, "[POC] reputation=%d (thr:%d), disconnecting %s\n", tot_rep, threshold, peer.addr);
 
                 CNode *p = connman->FindNode(peer.addr);
