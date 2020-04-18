@@ -3738,7 +3738,7 @@ LogPrint(BCLog::NET, "]\n");
             int thresholdIn = (g_monitors.size()*MAX_M_REPUTATION / 3);
             int thresholdOut = (g_monitors.size()*MAX_M_REPUTATION / 2);
             LogPrint(BCLog::NET, "[POC] reputation of %s = %d \n", peer.addr, tot_rep);
-            if((!peer.fInbound && tot_rep <= thresholdOut) || (peer.fInbound && tot_rep <= thresholdIn)){
+            if((!peer.fInbound && tot_rep < thresholdOut) || (peer.fInbound && tot_rep < thresholdIn)){
                 int threshold = peer.fInbound ? thresholdIn : thresholdOut;
                 LogPrint(BCLog::NET, "[POC] reputation=%d (thr:%d), disconnecting %s\n", tot_rep, threshold, peer.addr);
 
