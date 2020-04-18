@@ -3406,6 +3406,19 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 //         return true;
 //     }
 
+    /* Malicious node */
+    bool malicious = false;
+    if(gArgs.IsArgSet("-malicious")) malicious = true;
+
+    if (strCommand == NetMsgType::MAL) {
+        if(malicious){
+            LogPrint(BCLog::NET, "[POC] Received \"MAL\" from %s\n ", pfrom->addr.ToString());
+
+            pfrom->fIsMalicious = true;
+        }
+        return true;
+    }
+
     if (strCommand == NetMsgType::MON) {
         LogPrint(BCLog::NET, "[POC] Received \"MON\" from %s\n ", pfrom->addr.ToString());
 
@@ -3416,9 +3429,17 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         pfrom->fIsMonitor = true;
         pfrom->monAddr = monAddr;
+        g_monitors.push_back(pfrom);
+        for(auto mon : g_monitors)
+            LogPrint(BCLog::NET, "[POC] Monitor %s\n ", mon->monAddr);
 
         //Remove monitor from g_verified
         removeVerified(pfrom->GetAddrName());
+
+        //Initialize reputation for all peers
+        for (auto& gPeer : g_verified){
+            gPeer.initMonitor(pfrom->monAddr);
+        }
 
         return true;
     }
@@ -3426,7 +3447,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     if (strCommand == NetMsgType::POC) {
         CPoC poc;
         vRecv >> poc;
-        LogPrint(BCLog::NET, "[POC] Received \"POC\" from %s: \n                     [POC] id=%d|target:%s|monitor:%s\n", pfrom->addr.ToString(), poc.id, poc.target, poc.monitor);
+        LogPrint(BCLog::NET, "[POC] Received \"POC\" from %s: \n\
+                     [POC] id=%d|target:%s|monitor:%s\n", pfrom->addr.ToString(), poc.id, poc.target, poc.monitor);
 
         //TODO-POC: check monitor's signature
    
@@ -3494,12 +3516,27 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
             CNode* ppeer = NULL;
             std::string paddr;
-            
             std::string fromAddr = pfrom->addr.ToString();
 
             /* If pfrom is the monitor */
             if(pfrom->fIsMonitor){
                 LogPrint(BCLog::NET, "[POC] We are the target. Let's send POC to our peers\n");
+
+                // If malicious, let's send POC to other malicious nodes to make the monitor infer a fake connection
+                if(malicious){
+                    LogPrint(BCLog::NET, "[POC] MALICIOUS: let's send POC to other malicious peers\n");
+
+                    for (const CNodeStats& stats : vstats){
+                        ppeer = g_connman->FindNode(stats.addrName);
+
+                        if(ppeer->fIsMalicious) {
+                            LogPrint(BCLog::NET, "[POC] MALICIOUS: Forwarding POC to %s\n", ppeer->addr.ToString());
+                            g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POC, poc));
+                        }
+                    } 
+
+                    return true;             
+                }
 
                 // for each peer
                 for (const CNodeStats& stats : vstats){
@@ -3520,7 +3557,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                             for (auto& v : g_verified){
                                 if(v.addr == ppeer->GetAddrName()) {
                                     v.setPoC(poc.monitor, poc.id);
-                                    //v.fVerified[poc.monitor].pocId = poc.id;
                                     break;
                                 }
                             }
@@ -3529,11 +3565,26 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                }
             }//if(target)
 
-            /* If we are the target's peer, let's forward POC to the monitor */
+            /* If pfrom is the target, let's forward POC to the monitor */
             else 
             //only accept POC from inbound peers with the target's IP
             if(pfrom->addr.ToStringIP() == poc.target && pfrom->fInbound){ 
                 LogPrint(BCLog::NET, "[POC] We are the target's peer. Let's send POC to the monitor\n");
+
+                // If we are malicious, let's send POC to other malicious nodes
+                if(malicious){
+                    // for each peer
+                    for (const CNodeStats& stats : vstats){
+                        ppeer = g_connman->FindNode(stats.addrName);
+
+                        if(ppeer->fIsMalicious) {
+                            LogPrint(BCLog::NET, "[POC] MALICIOUS: Forwarding POC to %s\n", ppeer->addr.ToString());
+                            g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POC, poc));
+                        }
+                    }
+
+                    return true;
+                }
 
                 // Are we are connected to the monitor?
                 for (const CNodeStats& stats : vstats){
@@ -3570,8 +3621,30 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     }
                 }
             }
-            /* if we are not the monitor, nor the target, nor a peer of the target ... */            
+            /* pfrom is not the monitor, nor the target */            
             else {
+                // If malicious, let's forward POC to the monitor
+                if(malicious){
+                    // Are we are connected to the monitor?
+                    for (const CNodeStats& stats : vstats){
+                        CNode *p = g_connman->FindNode(stats.addrName);
+                        if(p->fIsMonitor && p->monAddr == poc.monitor){
+                            ppeer = p;
+                            break;
+                        }
+                    }
+                    //! If we don't find it?
+                    if(!ppeer){
+                        LogPrint(BCLog::NET, "[POC] ERROR: not connected to the monitor! (%s)\n", poc.target);
+                        return 1;
+
+                        //TODO-POC: let's register to the monitor
+                    }
+
+                    LogPrint(BCLog::NET, "[POC] Forwarding POC to monitor (%s)\n", ppeer->addr.ToString());
+                    g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POC, poc));
+                }
+
                 LogPrint(BCLog::NET, "[POC] WARNING: we're not monitor, nor target, nor target's peer!\n");
             }
         }
@@ -3580,6 +3653,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     }
 
     if (strCommand == NetMsgType::VERIFIED){
+        //If malicious, ignore VERIFIED
+        if(malicious) return true;
+
         if(!pfrom->fIsMonitor){
             LogPrint(BCLog::NET, "[POC] WARNING: Received \"VERIFIED\" from non-monitor node %s\n", pfrom->GetAddrName());
             return false;
@@ -3600,7 +3676,7 @@ LogPrint(BCLog::NET, "[%s (%s) poc:%d], ", vPeer.addr, vPeer.fInbound?"in":"out"
                     gPeer.setVerified(pfrom->monAddr);
                 }
                 //if inbound, check poc ID
-                else if(gPeer.fVerified[pfrom->monAddr].pocId == vPeer.pocId){
+                else if(gPeer.fInbound && gPeer.fVerified[pfrom->monAddr].pocId == vPeer.pocId){
                     gPeer.setVerified(pfrom->monAddr);
                 }
                 
@@ -3612,24 +3688,27 @@ LogPrint(BCLog::NET, "\n");
 LogPrint(BCLog::NET, "[POC] \"VPEERS\":\n");
         //for each peer
         for (auto& peer : g_verified){
-            int vcount = 0;
+            int tot_rep = 0;
+
 LogPrint(BCLog::NET, "%s(%s):[", peer.addr, peer.fInbound?"in":"out");
-            //count verified
+            //adjust reputation
             for(auto& vmon : peer.fVerified){
-LogPrint(BCLog::NET, "(%s:%d-%s), ", vmon.first, vmon.second.pocId,vmon.second.verified);
-                if(vmon.second.verified) vcount++;
+LogPrint(BCLog::NET, "(%s:%d-%s-rep:%d), ", vmon.first, vmon.second.pocId,vmon.second.verified,vmon.second.reputation);
+                if(!vmon.second.verified) vmon.second.reputation--;
+                tot_rep+=vmon.second.reputation;
             }
 LogPrint(BCLog::NET, "]\n");
 
-            //If the peer is not verified by the majority of monitors, let's disconnect
-            if(vcount < (peer.fVerified.size() / 2)){
-                LogPrint(BCLog::NET, "[POC] vcount=%d, disconnecting peer\n", vcount);
+            //If reputation goes beyond threshold, let's disconnect
+            int threshold = (g_monitors.size()*MAX_M_REPUTATION / 3);
+            LogPrint(BCLog::NET, "[POC] reputation of %s = %d \n", peer.addr, tot_rep);
+            if(tot_rep <= threshold){
+                LogPrint(BCLog::NET, "[POC] reputation=%d (thr:%d), disconnecting %s\n", tot_rep, threshold, peer.addr);
 
                 CNode *p = connman->FindNode(peer.addr);
                 if(p)
                     p->fDisconnect = true;
             }
-
         }
 //LogPrint(BCLog::NET, "\n");
 
@@ -4072,6 +4151,9 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
         }
 
         /*POC*/
+        if(!pto->fPoCInit)
+            initPoCConn(pto);
+
         if(g_netmon && pto->cleanSubVer == strSubVersion){
             //TODO-POC: check if nextUpdate happens before timeout. this should never happen
 
@@ -4137,7 +4219,6 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                     //Add node
                     if(!pto->netNode){
                         pto->netNode = g_netmon->addNetNode(pto->addr.ToString(), pto);
-                        g_netmon->sendMon(pto);
                     }
             }
             //

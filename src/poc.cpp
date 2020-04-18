@@ -27,15 +27,45 @@ std::string getOurAddrIP(CNode *p){
     return ourIP;
 }
 
-void CNetMon::sendMon(CNode *pnode){
-    if(g_netmon){
-        LogPrint(BCLog::NET, "[POC] Sending MON\n");
-        const CNetMsgMaker msgMaker(pnode->GetSendVersion());
-        std::string ouraddr = getOurAddr(pnode);
-        g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::MON, ouraddr));
-    }
+void sendMon(CNode *pnode){
+    LogPrint(BCLog::NET, "[POC] Sending MON\n");
+    const CNetMsgMaker msgMaker(pnode->GetSendVersion());
+    std::string ouraddr = getOurAddr(pnode);
+    g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::MON, ouraddr));
 }
 
+void sendMal(CNode *pnode){
+    LogPrint(BCLog::NET, "[POC] Sending MAL\n");
+    const CNetMsgMaker msgMaker(pnode->GetSendVersion());
+
+    std::vector<std::string> malPeers;
+    malPeers.clear();
+    g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::MAL, malPeers));
+}
+
+void initPoCConn(CNode *pnode){
+    pnode->fPoCInit = true;
+
+    /*Monitor*/
+    if(g_netmon)
+        return sendMon(pnode);
+    
+    /*Malicious*/
+    if(gArgs.IsArgSet("-malicious"))
+        return sendMal(pnode);
+
+    /*Regular*/
+    //Add CVerified vector for pnode
+    CVerified ver(pnode->GetAddrName(), pnode->fInbound);
+    //Init reputation for all monitors
+    for (auto monitor : g_monitors){
+        LogPrint(BCLog::NET, "[POC] Init reputation for %s\n", monitor->GetAddrName());
+        ver.initMonitor(monitor->monAddr);
+    }
+
+    LogPrint(BCLog::NET, "[POC] Adding %s to monitoring list\n", pnode->GetAddrName());
+    return g_verified.push_back(ver);
+}
 
 /* setMaxTimeout */
 void CNetMon::setMaxTimeout(){
@@ -114,6 +144,7 @@ void sendVerified(CNode *pto){
     //Retrieve peer list
     std::vector<CVerified> vVerified;
     
+    /* Add verified peers to list */
     for (const CPeer& peer : pto->netNode->vPeers){
         vVerified.push_back(CVerified(peer.addr, peer.fInbound, peer.poc->id));
     } 
@@ -124,6 +155,14 @@ void sendVerified(CNode *pto){
 // }
 // LogPrint(BCLog::NET, "\n");
 
+    /* Malicious node */
+    bool malicious = false;
+    if(gArgs.IsArgSet("-malicious")) malicious = true;
+    //If we are malicious, let's not confirm any peer
+    if(malicious){
+        LogPrint(BCLog::NET, "[POC] MALICIOUS: sending empty VERIFIED\n");
+        vVerified.clear();
+    }
 
     //Send VERIFIED message
     LogPrint(BCLog::NET, "[POC] Sending VERIFIED to %s\n", pto->GetAddrName());
@@ -161,12 +200,13 @@ void CNetMon::endPocRound(CNode *pnode){
 
     //Delete unverified peers
     for (CPeer& peer : netnode->vPeers){
-        if(peer.fInbound)
+        if(!peer.fInbound)
             //If last verified PoC is older than this round, consider peer as unverified
             if(peer.poc->id != netnode->poc->id){
                 LogPrint(BCLog::NET, "[POC] removing unverified peer %s of %s\n", peer.addr, pnode->GetAddrName());
-                //netnode->removePeer(peer.addr); //TODO: g_netmon->removeConnection
+                g_netmon->removeConnection(peer);
             }
+
     }
 
     //Send VERIFIED
@@ -230,16 +270,6 @@ CNode* CNetMon::connectNode(CPeer *peer){
 
     /* Connect to peer */
     CNode *ppeer = connectNode(peer->addr);
-
-    // //If we can't connect, send ALERT
-    // if(!ppeer){
-    //     LogPrint(BCLog::NET, "[POC] ERROR: could not connect\n");
-        
-    //     std::string type("connect");
-    //     sendAlert(peer,type);
-
-    //     return NULL;
-    // }
 
     return ppeer;
 }

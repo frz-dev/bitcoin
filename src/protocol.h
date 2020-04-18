@@ -239,6 +239,11 @@ extern const char *BLOCKTXN;
  */
 extern const char *MON;
 /**
+ * The MAL message is sent by malicious peers to recognize each other
+ * It includes the list of other known malicious peers.
+ */
+extern const char *MAL;
+/**
  * The REGISTER message is sent by a node to a monitor to register itself.
  * It include the address and port where the node accepts connections.
  */

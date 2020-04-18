@@ -804,6 +804,8 @@ public:
     /* Regular */
     bool fIsMonitor{false};
     std::string monAddr;
+    bool fIsMalicious{false};
+    bool fPoCInit{false};
     /**/
 
     // flood relay

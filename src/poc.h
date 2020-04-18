@@ -19,12 +19,14 @@ static const unsigned int AVG_POC_UPDATE_INTERVAL = 1;
 static const unsigned int MIN_POC_UPDATE_INTERVAL = 1;
 static const unsigned int MAX_POC_UPDATE_INTERVAL = 5;
 static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 100000; //0.1sec
+static const unsigned int MAX_M_REPUTATION = 10;
 
 #define F_INBOUND true
 #define F_OUTBOUND false
 
 std::string getOurAddr(CNode *p);
 bool removeVerified(std::string addr);
+void initPoCConn(CNode *pnode);
 
 /* CPoC */
 class CPoC
@@ -143,9 +145,10 @@ public:
 
 
 /* CVerified */
-struct pocmon {
+struct pocstat {
   int pocId = 0;
   bool verified = false;
+  int reputation;
 };
 
 class CVerified
@@ -154,7 +157,7 @@ public:
     std::string addr;
     bool fInbound;
     int pocId; //only used in VERIFIED message
-    std::map<std::string, struct pocmon> fVerified;
+    std::map<std::string, struct pocstat> fVerified;
 
     CVerified(){}
 
@@ -171,6 +174,10 @@ public:
         fVerified.clear();
     }
 
+    void initMonitor(std::string mon){
+        fVerified[mon].reputation = MAX_M_REPUTATION;
+    }
+
     void setPoC(std::string mon, int pocId){
         fVerified[mon].pocId = pocId;
         fVerified[mon].verified = false;
@@ -178,6 +185,7 @@ public:
 
     void setVerified(std::string mon){
         fVerified[mon].verified = true;
+        fVerified[mon].reputation = MAX_M_REPUTATION;
     }
 
     template <typename Stream>
@@ -292,12 +300,15 @@ public:
             if(pocUpdateInterval < MIN_POC_UPDATE_INTERVAL)
                 pocUpdateInterval = MIN_POC_UPDATE_INTERVAL;
 
+            LogPrint(BCLog::NET, "[POC] pocUpdateInterval changed:%d:\n",pocUpdateInterval);
+
             freqChanges = 0;
         }
         else if(freqChanges < -5){
             if(pocUpdateInterval < MAX_POC_UPDATE_INTERVAL)
                 pocUpdateInterval++;
 
+            LogPrint(BCLog::NET, "[POC] pocUpdateInterval changed:%d:\n",pocUpdateInterval);
             freqChanges = 0;
         }
         pocChanges = 0;
@@ -580,7 +591,6 @@ LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
         }
     }
 
-    void sendMon(CNode *pnode);
     void startPoCRound(CNode *pto);
     void endPocRound(CNode *pnode);
     //void sendVerified(CNode *pto);
@@ -592,5 +602,6 @@ LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
 
 extern std::unique_ptr<CNetMon> g_netmon;
 extern std::vector<CVerified> g_verified;
+extern std::vector<CNode*> g_monitors;
 
 #endif // BITCOIN_POC_H

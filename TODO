@@ -1,22 +1,48 @@
 
 DOING
-[X] remove disconnected from g_verified
-[X] exclude monitor from g_verified
- 
+[ ] MAL msg. include list of mal peers
+[ ] connect to all malnodes
 
 HIGH
+[ ] New nodes registration (if not connected to monitor when receiving POC)
+[ ] Counter, before disconnect for VERIFIED. Needed to allow new nodes to be verified
+[ ] Make MAX_VERIFICATION_TIMEOUT and AVG_UPDATE as bitcoind options
 
 LOW
+[X] List of monitors
+[ ] Make g_verified a std::map
 [ ] change fVerified[mon] to fVerified[pocId] ?
+
+EXPERIMENTS
+[ ] until registration not implemented, monitors should be manually connected to all nodes
+[ ] until MAL not fully implemented, malicious nodes should be manually connected to each other
 
 PAPER
 [ ] menzionare che nodi riconoscono verified peers da name se outbound, e da poc se inbound
+[ ] malicious monitors do not verify any connection - this is the worst case, in which they try to disconnect the whole network
+[ ] malicious node drops all POCs. there's no point in dropping only for some monitors, as this would not result in the connection to be hidden. Their attack can only succeeds if they hide from the majority of monitors, which is precisely the case in which the node reacts by disconnecting from it.
+[ ] malicious node can fw to other malicious node both POC coming form the monitor and another inbound peer.
+    - in the 'monitor' case, if the whole chain is malicious, they can fake the connection. if one of them is honest, it will drop the message
+    - in the 'peer' case, the peer can warn the monitor about a fake verified peer
+    .we implement a malicious node which fw pocs to all malicious nodes. they identify each other by using a MAL msg
+    .our malicious node do not fw to honest nodes, as this would always result in a failure
+        .if they receive POC from honest node, send to other malicious
+        .if coming from malicious node, which is the target, send it to other malicious nodes
+    .malicious nodes ignore the verified system and do not disconnect from anyone
+    .malicious nodes advertise other malicious nodes to the others via MAL msg, so that they all connect to each other
+    .in any case, if poc is received by the target, it's forwarded to all malicious peers
+    .if coming from a different peer (not the target, nor the peer), let's send it to the monitor
+
+DONE
+[X] Regular nodes: set pocid into CVerified when received from peer
+[X] remove disconnected from g_verified
+[X] exclude monitor from g_verified
+[X] Forward POC to outbound peers
+
 
 **********************************************************************
+OLD
 HIGH PRIORITY
-[X] Regular nodes: set pocid into CVerified when received from peer
-[ ] Make g_verified a std::map
-[X] Forward POC to outbound peers
 
 [ ] Set MAX_VERIFICATION_TIMEOUT to max seen ping
 [ ] unverified (timeout)
