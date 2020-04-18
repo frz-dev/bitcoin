@@ -27,6 +27,7 @@ static const unsigned int MAX_M_REPUTATION = 10;
 std::string getOurAddr(CNode *p);
 bool removeVerified(std::string addr);
 void initPoCConn(CNode *pnode);
+// void sendRegister(CNode *pnode, std::string monaddr);
 
 /* CPoC */
 class CPoC
@@ -595,7 +596,6 @@ LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
     void endPocRound(CNode *pnode);
     //void sendVerified(CNode *pto);
     CNode* connectNode(std::string addr);
-    CNode* connectNode(CPeer *peer);
 };
 
 /**/

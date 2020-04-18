@@ -2098,6 +2098,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             nCMPCTBLOCKVersion = 1;
             connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDCMPCT, fAnnounceUsingCMPCTBLOCK, nCMPCTBLOCKVersion));
         }
+
         pfrom->fSuccessfullyConnected = true;
         return true;
     }
@@ -3419,13 +3420,20 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         return true;
     }
 
+    /* Regular */
     if (strCommand == NetMsgType::MON) {
         LogPrint(BCLog::NET, "[POC] Received \"MON\" from %s\n ", pfrom->addr.ToString());
 
-        //TODO: verify identity
-
         std::string monAddr;
         vRecv >> monAddr;
+
+        // if(!pfrom->fInbound){
+        //     sendRegister(pfrom, monAddr);
+        //     pfrom->fDisconnect = true;
+        //     return true;
+        // }
+
+        //TODO: verify identity
 
         pfrom->fIsMonitor = true;
         pfrom->monAddr = monAddr;
@@ -3444,6 +3452,26 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         return true;
     }
 
+    /*POC*/ /*Monitor */
+//     if (strCommand == NetMsgType::REGISTER) {
+//         LogPrint(BCLog::NET, "[POC] Received \"REGISTER\" from %s. Connecting...\n ", pfrom->addr.ToString());
+//         std::string nodeaddr;
+//         vRecv >> nodeaddr;
+
+//         CNode *pnew = g_netmon->connectNode(nodeaddr);
+//         if(!pnew){
+//             LogPrint(BCLog::NET, "[POC] ERROR: can't connect to %s\n ", nodeaddr);
+//             return true;
+//         }
+
+//         //Disconnect pfrom
+// //        pfrom->fDisconnect = true;
+
+//         return true;
+//     }
+
+
+    /* All */
     if (strCommand == NetMsgType::POC) {
         CPoC poc;
         vRecv >> poc;
@@ -3586,7 +3614,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     return true;
                 }
 
-                // Are we are connected to the monitor?
+                // Are we connected to the monitor?
                 for (const CNodeStats& stats : vstats){
                     CNode *p = g_connman->FindNode(stats.addrName);
 
@@ -3596,12 +3624,17 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         break;
                     }
                 }
-                //! If we don't find it?
+                //! If not, let's register
                 if(!ppeer){
                     LogPrint(BCLog::NET, "[POC] ERROR: not connected to the monitor! (%s)\n", poc.target);
-                    return 1;
 
-                    //TODO-POC: let's register to the monitor
+                    //Open connection
+                    // CAddress paddr(CService(), NODE_NONE);
+                    // g_connman->OpenNetworkConnection(paddr, false, nullptr, poc.monitor.c_str(), false, false, true);
+                    // CNode *monitor = g_connman->FindNode(poc.monitor);
+
+                    //TODO: save POC for later?
+                    return true;
                 }
 
                 //If not fully connected, let's save poc for later
@@ -3700,7 +3733,7 @@ LogPrint(BCLog::NET, "(%s:%d-%s-rep:%d), ", vmon.first, vmon.second.pocId,vmon.s
 LogPrint(BCLog::NET, "]\n");
 
             //If reputation goes beyond threshold, let's disconnect
-            int threshold = (g_monitors.size()*MAX_M_REPUTATION / 3);
+            int threshold = (g_monitors.size()*MAX_M_REPUTATION / 2);
             LogPrint(BCLog::NET, "[POC] reputation of %s = %d \n", peer.addr, tot_rep);
             if(tot_rep <= threshold){
                 LogPrint(BCLog::NET, "[POC] reputation=%d (thr:%d), disconnecting %s\n", tot_rep, threshold, peer.addr);
@@ -4151,12 +4184,12 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
         }
 
         /*POC*/
-        if(!pto->fPoCInit)
+        if(!pto->fPoCInit){
             initPoCConn(pto);
+            return true;
+        }
 
         if(g_netmon && pto->cleanSubVer == strSubVersion){
-            //TODO-POC: check if nextUpdate happens before timeout. this should never happen
-
             //
             // Message: poc (send pending POC messages)
             //
@@ -4230,15 +4263,15 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                     g_netmon->startPoCRound(pto);
                 }
 
-                /* Set next PoC round */
-                pto->nNextPoCRound = PoissonNextSend(nNow, pto->netNode->pocUpdateInterval);
+                // /* Set next PoC round */
+                // pto->nNextPoCRound = PoissonNextSend(nNow, pto->netNode->pocUpdateInterval+pto->netNode->poc->timeout);
 
                 //Next PoC round should be after timeout
-                int64_t timeout = pto->netNode->poc->timeout;
-                if(pto->nNextPoCRound < timeout){
-                    LogPrint(BCLog::NET, "[POC] WARNING: nNextPoCRound < timeout. Adjusting next PoC round \n");
-                    pto->nNextPoCRound = timeout+100000;
-                }
+                // int64_t timeout = pto->netNode->poc->timeout;
+                // if(pto->nNextPoCRound < timeout){
+                //     LogPrint(BCLog::NET, "[POC] WARNING: nNextPoCRound < timeout. Adjusting next PoC round \n");
+                //     pto->nNextPoCRound = timeout+100000;
+                // }
 
             }
         }

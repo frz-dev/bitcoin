@@ -19,14 +19,6 @@ std::string getOurAddr(CNode *p){
     return ouraddr;
 }
 
-std::string getOurAddrIP(CNode *p){
-    CAddress addrBind = p->addrBind;
-    
-    std::string ourIP = addrBind.ToStringIP();
-
-    return ourIP;
-}
-
 void sendMon(CNode *pnode){
     LogPrint(BCLog::NET, "[POC] Sending MON\n");
     const CNetMsgMaker msgMaker(pnode->GetSendVersion());
@@ -43,7 +35,21 @@ void sendMal(CNode *pnode){
     g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::MAL, malPeers));
 }
 
+// void sendRegister(CNode *pnode, std::string monaddr){
+//     LogPrint(BCLog::NET, "[POC] Sending REGISTER\n");
+
+//     //Send REGISTER
+//     std::string ouraddr = getOurAddr(pnode);
+//     const CNetMsgMaker msgMaker(pnode->GetSendVersion());
+//     g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::REGISTER, ouraddr));
+// }
+
 void initPoCConn(CNode *pnode){
+    if(!g_connman->NodeFullyConnected(pnode) || !pnode->fSuccessfullyConnected){
+        LogPrint(BCLog::NET, "[POC] WARNING: Not fully connected. Postponing initialization (%s)\n");
+        return;
+    }
+    
     pnode->fPoCInit = true;
 
     /*Monitor*/
@@ -63,7 +69,7 @@ void initPoCConn(CNode *pnode){
         ver.initMonitor(monitor->monAddr);
     }
 
-    LogPrint(BCLog::NET, "[POC] Adding %s to monitoring list\n", pnode->GetAddrName());
+    LogPrint(BCLog::NET, "[POC] Adding %s (bind:%s) to monitoring list\n", pnode->GetAddrName(),pnode->addrBind.ToString());
     return g_verified.push_back(ver);
 }
 
@@ -177,14 +183,15 @@ void CNetMon::startPoCRound(CNode *pnode){
     LogPrint(BCLog::NET, "[POC] startPoCRound(%s)\n", pnode->GetAddrName());
 
     if(!pnode){ LogPrint(BCLog::NET, "[POC] WARNING: pnode is NULL\n"); return;}
-    if(!pnode->netNode){ LogPrint(BCLog::NET, "[POC] WARNING: netNode is NULL\n"); return;}
+    CNetNode *pnetnode = pnode->netNode;
+    if(!pnetnode){ LogPrint(BCLog::NET, "[POC] WARNING: netNode is NULL\n"); return;}
 
-    CPoC *poc = pnode->netNode->poc;
+    CPoC *poc = pnetnode->poc;
     //Create or update PoC    
     if(poc)
         poc->update();
     else
-        poc=createPoC(pnode->netNode);
+        poc=createPoC(pnetnode);
 
     //Send POC message
 //    sendPoC(pnode);
@@ -192,6 +199,9 @@ void CNetMon::startPoCRound(CNode *pnode){
 
     LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target:%s|monitor:%s\n", pnode->GetAddrName(),poc->id,poc->target,poc->monitor);
     g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::POC, *poc));
+
+    //Let's wait for next PoC round starting from when this round ends
+    pnode->nNextPoCRound = PoissonNextSend(poc->timeout, pnetnode->pocUpdateInterval);
 }
 
 void CNetMon::endPocRound(CNode *pnode){
@@ -262,16 +272,21 @@ CNode * CNetMon::connectNode(std::string addr){
 
     CAddress paddr(CService(), NODE_NONE);
     g_connman->OpenNetworkConnection(paddr, false, nullptr, addr.c_str(), false, false, true);
-    return g_connman->FindNode(addr);
-}
+    CNode *pnode = g_connman->FindNode(addr);
+   
+    if(pnode) {
+        //Create NetNode
+        pnode->netNode = addNetNode(pnode->addr.ToString(), pnode);
+        if(!pnode->netNode) LogPrint(BCLog::NET, "[POC] WARNING- NetNode not added! %s\n", addr);
+    }
+    else
+    {
+        LogPrint(BCLog::NET, "[POC] WARNING- NetNode not added! %s\n", addr);
+    }
+    
 
-CNode* CNetMon::connectNode(CPeer *peer){
-    if(peer->fInbound) return NULL;
+    return pnode;
 
-    /* Connect to peer */
-    CNode *ppeer = connectNode(peer->addr);
-
-    return ppeer;
 }
 
 bool removeVerified(std::string addr){

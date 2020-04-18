@@ -1076,7 +1076,7 @@ void CConnman::DisconnectNodes()
                 }
                 if (fDelete) {
                     /*POC*/
-                    LogPrint(BCLog::NET, "[POC] DISCONNECTED NODE: %s\n", pnode->addr.ToString());
+                    LogPrint(BCLog::NET, "[POC] DISCONNECTED NODE: %s (bind:%s)\n", pnode->addr.ToString(),pnode->addrBind.ToString());
                     if(g_netmon){
                         //If a node disconnects, let's remove it from the topology
                         g_netmon->removeNode(pnode->addr.ToString());
