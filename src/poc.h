@@ -15,9 +15,9 @@ class CNode;
 class CNetNode;
 class CPeer;
 
-static const unsigned int AVG_POC_UPDATE_INTERVAL = 1;
+static const unsigned int AVG_POC_UPDATE_INTERVAL = 3;
 static const unsigned int MIN_POC_UPDATE_INTERVAL = 1;
-static const unsigned int MAX_POC_UPDATE_INTERVAL = 3;
+static const unsigned int MAX_POC_UPDATE_INTERVAL = 5;
 static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 100000; //0.1sec
 static const unsigned int MAX_M_REPUTATION = 10;
 
@@ -32,6 +32,11 @@ void initPoCConn(CNode *pnode);
 /* CPoC */
 class CPoC
 {
+private:
+    int generateId(){
+        return rand() % 100000; //TODO get better random number
+    }
+
 public:
     int id;
     std::string monitor;
@@ -39,7 +44,7 @@ public:
 
     //Digital Signature?
     std::atomic<int64_t> timeout{0};
-    std::atomic<int64_t> maxTimeout{MAX_VERIFICATION_TIMEOUT};
+//    std::atomic<int64_t> maxTimeout{MAX_VERIFICATION_TIMEOUT};
     bool fExpired {false};
 //    std::string target_addr; //Target ID 
 
@@ -47,24 +52,23 @@ public:
                            //so  we can keep the peer's previous status unchanged while we wait for poc to complete
 
     CPoC(){
-        id = 0;
+        id = generateId();
         monitor = "";
         target = "";
-        timeout = GetTimeMicros()+maxTimeout;
     };
 
-    CPoC(int i, const std::string& m, const std::string& t){
-        id = i;
+    CPoC(const std::string& m, const std::string& t, int64_t to){
+        id = generateId();
         monitor = m;
         target = t;
-        timeout = GetTimeMicros()+maxTimeout;
+        timeout = to;
     };
 
     /* Updates PoC */
-    void update(void){
-        id = rand() % 100000;
-        int64_t nNow = GetTimeMicros();
-        timeout = nNow+maxTimeout;
+    void update(int64_t to){
+        id = generateId();
+        //int64_t nNow = GetTimeMicros();
+        timeout = to;
         fExpired = false;
     }
 
@@ -263,7 +267,7 @@ public:
     
     //PoC//
     CPoC *poc{NULL};
-    unsigned int pocUpdateInterval = {AVG_POC_UPDATE_INTERVAL};
+    unsigned int pocUpdateInterval = {MIN_POC_UPDATE_INTERVAL};
 
     //Methods//
     CNetNode(){}
@@ -349,21 +353,6 @@ public:
     //         }
     //         if(!found) changes++;
     //     }
-
-    //     /* Update frequency */
-    //     if(changes>0){
-    //         updateFreq -= changes;
-
-    //         if(updateFreq < MIN_POC_UPDATE_INTERVAL)
-    //             updateFreq = MIN_POC_UPDATE_INTERVAL;
-    //     }
-    //     else if(updateFreq < MAX_POC_UPDATE_INTERVAL)
-    //             updateFreq++;
-        
-
-    //     vPeers.clear();
-    //     vPeers = newvPeers;
-    // }
 
     bool operator==(const CNetNode &node) const {
         return this->addr == node.addr;

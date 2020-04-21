@@ -117,22 +117,21 @@ void CNetMon::setMaxTimeout(){
 
 
 /* createPoC */
-CPoC * createPoC(CNetNode *ptarget){
-    LogPrint(BCLog::NET, "[POC] createPoC(%s)\n", ptarget->addr);
-    CNode *pnode = ptarget->getCNode();
-    int pocId = rand() % 100000; //TODO get better random number
+CPoC * createPoC(CNode *pnode, int64_t timeout){
+    LogPrint(BCLog::NET, "[POC] createPoC(%s)\n", pnode->GetAddrName());
+    //int pocId = rand() % 100000; //TODO get better random number
 
     //Create poc
     std::string ouraddr = getOurAddr(pnode);
     std::string targetaddr = pnode->addr.ToStringIP();
-    CPoC *poc = new CPoC(pocId, ouraddr, targetaddr);
+    CPoC *poc = new CPoC(ouraddr, targetaddr, timeout);
 
     //Set timeout as the maxtimeout seen in last poc round
-    int64_t nNow = GetTimeMicros();
-    poc->timeout = nNow+MAX_VERIFICATION_TIMEOUT+10000;
+    // int64_t nNow = GetTimeMicros();
+    // poc->timeout = nNow+MAX_VERIFICATION_TIMEOUT+10000;
 
     //Replace PoC
-    ptarget->poc = poc;
+    
 
     return poc;
 }
@@ -178,7 +177,15 @@ void sendVerified(CNode *pto){
     return;
 }
 
-/* sendPoC */
+void sendPoC(CNode *pnode){
+    CPoC *poc = pnode->netNode->poc;
+    const CNetMsgMaker msgMaker(pnode->GetSendVersion());
+
+    LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target:%s|monitor:%s\n", pnode->GetAddrName(),poc->id,poc->target,poc->monitor);
+    g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::POC, *poc));
+}
+
+/* startPoCRound */
 void CNetMon::startPoCRound(CNode *pnode){
     LogPrint(BCLog::NET, "[POC] startPoCRound(%s)\n", pnode->GetAddrName());
 
@@ -186,22 +193,22 @@ void CNetMon::startPoCRound(CNode *pnode){
     CNetNode *pnetnode = pnode->netNode;
     if(!pnetnode){ LogPrint(BCLog::NET, "[POC] WARNING: netNode is NULL\n"); return;}
 
+    //Set next poc round
+    pnode->nNextPoCRound = PoissonNextSend(GetTimeMicros(), pnetnode->pocUpdateInterval);
+    //Set timeout to expire 0.01 secs before next poc round
+    int64_t timeout = pnode->nNextPoCRound - 10000; //-0.01sec
+
     CPoC *poc = pnetnode->poc;
     //Create or update PoC    
     if(poc)
-        poc->update();
-    else
-        poc=createPoC(pnetnode);
+        poc->update(timeout);
+    else{
+        poc=createPoC(pnode, timeout);
+        pnetnode->poc = poc;
+    }
 
     //Send POC message
-//    sendPoC(pnode);
-    const CNetMsgMaker msgMaker(pnode->GetSendVersion());
-
-    LogPrint(BCLog::NET, "[POC] Sending POC to %s: id:%d|target:%s|monitor:%s\n", pnode->GetAddrName(),poc->id,poc->target,poc->monitor);
-    g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::POC, *poc));
-
-    //Let's wait for next PoC round starting from when this round ends
-    pnode->nNextPoCRound = PoissonNextSend(poc->timeout, pnetnode->pocUpdateInterval);
+    sendPoC(pnode);
 }
 
 void CNetMon::endPocRound(CNode *pnode){
