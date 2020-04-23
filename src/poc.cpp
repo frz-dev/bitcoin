@@ -201,7 +201,9 @@ void CNetMon::startPoCRound(CNode *pnode){
     g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::POC, *poc));
 
     //Let's wait for next PoC round starting from when this round ends
-    pnode->nNextPoCRound = PoissonNextSend(poc->timeout, pnetnode->pocUpdateInterval);
+    pnode->nNextPoCRound = PoissonNextSend(GetTimeMicros(), pnetnode->pocUpdateInterval);
+    poc->timeout = pnode->nNextPoCRound - 100000;
+
 }
 
 void CNetMon::endPocRound(CNode *pnode){
@@ -210,12 +212,20 @@ void CNetMon::endPocRound(CNode *pnode){
 
     //Delete unverified peers
     for (CPeer& peer : netnode->vPeers){
+        //if outbound
         if(!peer.fInbound)
             //If last verified PoC is older than this round, consider peer as unverified
             if(peer.poc->id != netnode->poc->id){
-                LogPrint(BCLog::NET, "[POC] removing unverified peer %s of %s\n", peer.addr, pnode->GetAddrName());
+                LogPrint(BCLog::NET, "[POC] removing unverified outbound peer %s of %s\n", peer.addr, pnode->GetAddrName());
                 g_netmon->removeConnection(peer);
             }
+        //if inbound
+        else{
+            if(peer.poc->fExpired){
+                LogPrint(BCLog::NET, "[POC] removing unverified inbound peer %s of %s\n", peer.addr, pnode->GetAddrName());
+                g_netmon->removeConnection(peer);
+            }
+        }
 
     }
 
