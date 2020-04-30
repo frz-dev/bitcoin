@@ -1299,6 +1299,7 @@ bool CChainState::IsInitialBlockDownload() const
     LogPrint(BCLog::NET, "[FRZ] m_chain.Tip()->nChainWork < nMinimumChainWork\n");
     if (m_chain.Tip()->nChainWork < nMinimumChainWork)
         return true;
+    LogPrint(BCLog::NET, "[FRZ] m_chain.Tip() is %s null\n", m_chain.Tip()?"not":"");
     LogPrint(BCLog::NET, "[FRZ] m_chain.Tip()->GetBlockTime()\n");
     if (m_chain.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
         return true;
