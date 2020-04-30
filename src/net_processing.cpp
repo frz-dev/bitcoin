@@ -1992,6 +1992,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         UpdatePreferredDownload(pfrom, State(pfrom->GetId()));
         }
 
+        /*FRZ*/
+        LogPrint(BCLog::NET, "[FRZ] pfrom (%s) is %s\n", pfrom->GetAddrName(), pfrom->fInbound?"inbound":"outbound");
+        if(pfrom->IsAddrRelayPeer()) LogPrint(BCLog::NET, "[FRZ] pfrom (%s) is RelayePeer\n", pfrom->addr.ToString());
+        /**/
         if (!pfrom->fInbound && pfrom->IsAddrRelayPeer())
         {
             // Advertise our address
@@ -1999,6 +2003,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             {
                 CAddress addr = GetLocalAddress(&pfrom->addr, pfrom->GetLocalServices());
                 FastRandomContext insecure_rand;
+                /*FRZ*/
+                if(addr.IsRoutable()) LogPrint(BCLog::NET, "[FRZ] our addr is routable\n");
+                if (IsPeerAddrLocalGood(pfrom)) LogPrint(BCLog::NET, "[FRZ] our addrLocal is good\n");
+                /**/
                 if (addr.IsRoutable())
                 {
                     LogPrint(BCLog::NET, "ProcessMessages: advertising address %s\n", addr.ToString());
