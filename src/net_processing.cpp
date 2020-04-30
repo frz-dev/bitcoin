@@ -1999,6 +1999,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if (!pfrom->fInbound && pfrom->IsAddrRelayPeer())
         {
             // Advertise our address
+            if(fListen) LogPrint(BCLog::NET, "[FRZ] fListen\n");
+            if(::ChainstateActive().IsInitialBlockDownload()) LogPrint(BCLog::NET, "[FRZ] In Initial Block Download\n");
             if (fListen && !::ChainstateActive().IsInitialBlockDownload())
             {
                 CAddress addr = GetLocalAddress(&pfrom->addr, pfrom->GetLocalServices());
