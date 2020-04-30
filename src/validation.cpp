@@ -1287,14 +1287,19 @@ bool CChainState::IsInitialBlockDownload() const
         return false;
 
     LOCK(cs_main);
+    LogPrint(BCLog::NET, "[FRZ] m_cached_finished_ibd\n");
     if (m_cached_finished_ibd.load(std::memory_order_relaxed))
         return false;
+    LogPrint(BCLog::NET, "[FRZ] fImporting || fReindex\n");
     if (fImporting || fReindex)
         return true;
+    LogPrint(BCLog::NET, "[FRZ] m_chain.Tip() == nullptr\n");
     if (m_chain.Tip() == nullptr)
         return true;
+    LogPrint(BCLog::NET, "[FRZ] m_chain.Tip()->nChainWork < nMinimumChainWork\n");
     if (m_chain.Tip()->nChainWork < nMinimumChainWork)
         return true;
+    LogPrint(BCLog::NET, "[FRZ] m_chain.Tip()->GetBlockTime()\n");
     if (m_chain.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
         return true;
     LogPrintf("Leaving InitialBlockDownload (latching to false)\n");
