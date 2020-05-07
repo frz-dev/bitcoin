@@ -2132,10 +2132,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         std::vector<CAddress> vAddrOk;
         int64_t nNow = GetAdjustedTime();
         int64_t nSince = nNow - 10 * 60;
-    LogPrint(BCLog::NET, "[FRZ]  Processing ADDR:\n");    
+    LogPrint(BCLog::NET, "[FRZ][ADDR] Processing addrs:\n");    
         for (CAddress& addr : vAddr)
         {
-    LogPrint(BCLog::NET, "[FRZ] addr=%s",addr.ToString());
+    LogPrint(BCLog::NET, "[FRZ][ADDR] %s",addr.ToString());
             if (interruptMsgProc)
                 return true;
 
