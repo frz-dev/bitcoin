@@ -2135,7 +2135,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     LogPrint(BCLog::NET, "[FRZ][ADDR] Processing addrs:\n");    
         for (CAddress& addr : vAddr)
         {
-    LogPrint(BCLog::NET, "[FRZ][ADDR] %s",addr.ToString());
+    LogPrint(BCLog::NET, "[FRZ][ADDR] Received: %s",addr.ToString());
             if (interruptMsgProc)
                 return true;
 
