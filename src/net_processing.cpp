@@ -2132,8 +2132,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         std::vector<CAddress> vAddrOk;
         int64_t nNow = GetAdjustedTime();
         int64_t nSince = nNow - 10 * 60;
+    LogPrint(BCLog::NET, "[FRZ]  Processing ADDR:\n");    
         for (CAddress& addr : vAddr)
         {
+    LogPrint(BCLog::NET, "[FRZ] addr=%s",addr.ToString());
             if (interruptMsgProc)
                 return true;
 
@@ -2142,20 +2144,25 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // part because we may make feeler connections to them.
             if (!MayHaveUsefulAddressDB(addr.nServices) && !HasAllDesirableServiceFlags(addr.nServices))
                 continue;
+LogPrint(BCLog::NET, ", FullNode");
 
             if (addr.nTime <= 100000000 || addr.nTime > nNow + 10 * 60)
                 addr.nTime = nNow - 5 * 24 * 60 * 60;
             pfrom->AddAddressKnown(addr);
+if (g_banman->IsBanned(addr)) LogPrint(BCLog::NET, ", Banned");
             if (g_banman->IsBanned(addr)) continue; // Do not process banned addresses beyond remembering we received them
             bool fReachable = IsReachable(addr);
+if(fReachable) LogPrint(BCLog::NET, ", Reachable");
             if (addr.nTime > nSince && !pfrom->fGetAddr && vAddr.size() <= 10 && addr.IsRoutable())
             {
+if(fReachable) LogPrint(BCLog::NET, ", Relaying");
                 // Relay to a limited number of other nodes
                 RelayAddress(addr, fReachable, connman);
             }
             // Do not store addresses outside our network
             if (fReachable)
                 vAddrOk.push_back(addr);
+LogPrint(BCLog::NET, "\n");
         }
         connman->AddNewAddresses(vAddrOk, pfrom->addr, 2 * 60 * 60);
         if (vAddr.size() < 1000)
