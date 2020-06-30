@@ -1992,15 +1992,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         UpdatePreferredDownload(pfrom, State(pfrom->GetId()));
         }
 
-        /*FRZ*/
-        LogPrint(BCLog::NET, "[FRZ] pfrom (%s) is %s\n", pfrom->GetAddrName(), pfrom->fInbound?"inbound":"outbound");
-        if(pfrom->IsAddrRelayPeer()) LogPrint(BCLog::NET, "[FRZ] pfrom (%s) is RelayePeer\n", pfrom->addr.ToString());
-        /**/
         if (!pfrom->fInbound && pfrom->IsAddrRelayPeer())
         {
             // Advertise our address
-            if(fListen) LogPrint(BCLog::NET, "[FRZ] fListen\n");
-            if(::ChainstateActive().IsInitialBlockDownload()) LogPrint(BCLog::NET, "[FRZ] In Initial Block Download\n");
+            LogPrint(BCLog::NET, "[FRZ] Advertise our address\n");
             if (fListen && !::ChainstateActive().IsInitialBlockDownload())
             {
                 CAddress addr = GetLocalAddress(&pfrom->addr, pfrom->GetLocalServices());
@@ -2019,6 +2014,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     pfrom->PushAddress(addr, insecure_rand);
                 }
             }
+            else{
+                if(!fListen) LogPrint(BCLog::NET, "[FRZ] fListen=false\n");
+                if(::ChainstateActive().IsInitialBlockDownload()) LogPrint(BCLog::NET, "[FRZ] In Initial Block Download\n");
+            }
 
             // Get recent addresses
             if (pfrom->fOneShot || pfrom->nVersion >= CADDR_TIME_VERSION || connman->GetAddressCount() < 1000)
@@ -2027,6 +2026,13 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 pfrom->fGetAddr = true;
             }
             connman->MarkAddressGood(pfrom->addr);
+        }
+        else{
+            /*FRZ*/
+            LogPrint(BCLog::NET, "[FRZ] Not advertising to pfrom (%s)", pfrom->GetAddrName());
+            LogPrint(BCLog::NET, "[FRZ] pfrom is %s\n", pfrom->fInbound?"inbound":"outbound");
+            LogPrint(BCLog::NET, "[FRZ] pfrom is %s RelayePeer\n", pfrom->IsAddrRelayPeer()?"":"not");
+            /**/
         }
 
         std::string remoteAddr;
@@ -2152,17 +2158,19 @@ LogPrint(BCLog::NET, ", FullNode");
 if (g_banman->IsBanned(addr)) LogPrint(BCLog::NET, ", Banned");
             if (g_banman->IsBanned(addr)) continue; // Do not process banned addresses beyond remembering we received them
             bool fReachable = IsReachable(addr);
-if(fReachable) LogPrint(BCLog::NET, ", Reachable");
+if(fReachable) LogPrint(BCLog::NET, ", Reachable, ");
+if(addr.IsRoutable()) LogPrint(BCLog::NET, ", Routable. ");;
             if (addr.nTime > nSince && !pfrom->fGetAddr && vAddr.size() <= 10 && addr.IsRoutable())
             {
-if(fReachable) LogPrint(BCLog::NET, ", Relaying");
+ LogPrint(BCLog::NET, "Relaying addr...\n");
                 // Relay to a limited number of other nodes
                 RelayAddress(addr, fReachable, connman);
             }
+else
+LogPrint(BCLog::NET, "\n");
             // Do not store addresses outside our network
             if (fReachable)
                 vAddrOk.push_back(addr);
-LogPrint(BCLog::NET, "\n");
         }
         connman->AddNewAddresses(vAddrOk, pfrom->addr, 2 * 60 * 60);
         if (vAddr.size() < 1000)
