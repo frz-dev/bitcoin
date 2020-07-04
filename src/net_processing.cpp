@@ -3438,8 +3438,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         pfrom->fIsMonitor = true;
         pfrom->monAddr = monAddr;
         g_monitors.push_back(pfrom);
-        for(auto mon : g_monitors)
-            LogPrint(BCLog::NET, "[POC] Monitor %s\n ", mon->monAddr);
+        // for(auto mon : g_monitors)
+        //     LogPrint(BCLog::NET, "[POC] Monitor %s\n ", mon->monAddr);
 
         //Remove monitor from g_verified
         removeVerified(pfrom->GetAddrName());
@@ -3495,6 +3495,12 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     return false;
                 }
 
+                //Check self connection
+                if(pfrom->addr.ToStringIP()==poc.target){
+                    LogPrint(BCLog::NET, "[POC] WARNING: pfrom == target\n");
+                    return true;
+                }
+
                 //Get target NetNode
                 CNetNode *pfromN = pfrom->netNode;
                 CNetNode *target = g_netmon->getNetNodeByPoC(poc.id);
@@ -3514,23 +3520,27 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     LogPrint(BCLog::NET, "[POC] VERIFIED %s->%s\n", target->addr, paddr);
                     
                     //Do we know this connection?
-                    CPeer *peer = target->getPeer(paddr);
+//                    CPeer *peer = target->getPeer(paddr);
 
-                    //If so, let's update it
-                    if(peer){
-                        LogPrint(BCLog::NET, "[POC] Updating connection\n");
-
-                        peer->poc = target->poc;
-                        CPeer *peer2 = pfromN->getPeer(target->addr);
-                        if(peer2) peer2->poc = target->poc;
-                    }
-                    //Otherwise, let's create it
-                    else{
+                    std::vector<CPeer*> vMultiPeer = target->getMultiPeer(paddr, F_OUTBOUND);
+                    if (vMultiPeer.empty()){
                         LogPrint(BCLog::NET, "[POC] Creating connection\n");
 
                         target->addPeer(paddr, F_OUTBOUND, target->poc);
                         pfromN->addPeer(target->addr, F_INBOUND, target->poc);
                     }
+                    else{
+                        for(auto& peer : vMultiPeer){
+                            LogPrint(BCLog::NET, "[POC] Updating connection\n");
+
+                            peer->poc = target->poc;
+                            std::vector<CPeer*> vMultiPeer2 = pfromN->getMultiPeer(paddr, F_INBOUND);
+                            for(auto& peer2 : vMultiPeer2){
+//                                CPeer *peer2 = pfromN->getPeer(target->addr);
+                                peer2->poc = target->poc;
+                            }
+                        }
+                    }                    
                 }
                 //TODO else ?
             }
@@ -3735,17 +3745,20 @@ LogPrint(BCLog::NET, "(%s:%d-%s-rep:%d), ", vmon.first, vmon.second.pocId,vmon.s
 LogPrint(BCLog::NET, "]\n");
 
             //If reputation goes beyond threshold, let's disconnect
-            int thresholdIn = (g_monitors.size()*MAX_M_REPUTATION / 3);
+            int thresholdIn = 0;
             int thresholdOut = (g_monitors.size()*MAX_M_REPUTATION / 2);
+            //int threshold = (g_monitors.size()*MAX_M_REPUTATION / 2);
             LogPrint(BCLog::NET, "[POC] reputation of %s = %d \n", peer.addr, tot_rep);
-            if((!peer.fInbound && tot_rep < thresholdOut) || (peer.fInbound && tot_rep < thresholdIn)){
-                int threshold = peer.fInbound ? thresholdIn : thresholdOut;
-                LogPrint(BCLog::NET, "[POC] reputation=%d (thr:%d), disconnecting unverified %s\n", tot_rep, threshold, peer.addr);
+            if(g_monitors.size()>2)
+                if((!peer.fInbound && tot_rep < thresholdOut) || (peer.fInbound && tot_rep < thresholdIn)){
+                //if(g_monitors.size()>2 && tot_rep < threshold){
+                    int threshold = peer.fInbound ? thresholdIn : thresholdOut;
+                    LogPrint(BCLog::NET, "[POC] reputation=%d (thr:%d), disconnecting unverified %s\n", tot_rep, threshold, peer.addr);
 
-                CNode *p = connman->FindNode(peer.addr);
-                if(p)
-                    p->fDisconnect = true;
-            }
+                    CNode *p = connman->FindNode(peer.addr);
+                    if(p)
+                        p->fDisconnect = true;
+                }
         }
 //LogPrint(BCLog::NET, "\n");
 

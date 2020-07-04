@@ -15,9 +15,9 @@ class CNode;
 class CNetNode;
 class CPeer;
 
-static const unsigned int AVG_POC_UPDATE_INTERVAL = 1;
+static const unsigned int AVG_POC_UPDATE_INTERVAL = 3;
 static const unsigned int MIN_POC_UPDATE_INTERVAL = 1;
-static const unsigned int MAX_POC_UPDATE_INTERVAL = 3;
+static const unsigned int MAX_POC_UPDATE_INTERVAL = 5;
 static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 100000; //0.1sec
 static const unsigned int MAX_M_REPUTATION = 10;
 
@@ -62,7 +62,7 @@ public:
 
     /* Updates PoC */
     void update(void){
-        id = rand() % 100000;
+        id = rand() % 1000000000;
         int64_t nNow = GetTimeMicros();
         timeout = nNow+maxTimeout;
         fExpired = false;
@@ -386,13 +386,17 @@ public:
         return nullptr;
     }
 
-    // CPeer* findPeer2(CPeer p){ //TODO: rename findSymmetric
-    //     LOCK(cs_peers);
-    //     for (CPeer& peer : vPeers){
-    //         if(peer.isSymmetric(p)) return &peer;
-    //     }
-    //     return nullptr;
-    // }
+    std::vector<CPeer*> getMultiPeer(std::string a, bool i){
+        LOCK(cs_peers);
+        std::vector<CPeer*> vMP;
+
+        for (CPeer& peer : vPeers){
+            if(peer.addr==a && peer.fInbound==i) 
+                vMP.push_back(&peer);
+        }
+
+        return vMP;
+    }
 
 
     bool removePeer(std::string addr){

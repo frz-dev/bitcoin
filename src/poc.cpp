@@ -202,7 +202,7 @@ void CNetMon::startPoCRound(CNode *pnode){
 
     //Let's wait for next PoC round starting from when this round ends
     pnode->nNextPoCRound = PoissonNextSend(GetTimeMicros(), pnetnode->pocUpdateInterval);
-    poc->timeout = pnode->nNextPoCRound - 100000;
+    poc->timeout = pnode->nNextPoCRound - 10000;
 
 }
 
@@ -238,43 +238,6 @@ void CNetMon::endPocRound(CNode *pnode){
     //Set PoC expired
     netnode->poc->fExpired = true;
 }
-
-/* sendAlert */
-// void CNetMon::sendAlert(CPeer *peer, std::string type){
-//     if(!peer){ LogPrint(BCLog::NET, "[POC] ERROR !peer\n"); return;}
-
-//     CPoCAlert alert(type, peer->addr, peer->addrBind);
-
-//     LogPrint(BCLog::NET, "[POC] Sending \"ALERT\": type=%s, a1=%s, a2=%s\n", alert.type, alert.addr1, alert.addr2);
-
-//     //Send to node A
-//     //if(!peer->node) LogPrint(BCLog::NET, "[POC] ERROR !peer->node\n");
-//     CNode *pA;
-//     if(peer->node)
-//         pA = peer->node->getCNode();
-//     else 
-//         pA = g_connman->FindNode(peer->addr);
-//     if(pA){
-//         LogPrint(BCLog::NET, "[POC] Sending \"ALERT\" to %s\n", pA->addr.ToString());
-//         g_connman->PushMessage(pA, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));    
-//     }
-
-//     //Send to node B (if connected)
-//     CNetNode *pBn = g_netmon->findNodeByPeer(peer->addrBind,peer->addr); //getNetNode(peer->addr);
-//     if(pBn){
-//         CNode *pB = pBn->getCNode();
-//         if(pB){
-//             LogPrint(BCLog::NET, "[POC] Sending \"ALERT\" to %s\n", pB->addr.ToString());
-//             g_connman->PushMessage(pB, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::POCALERT, alert));
-//         }
-//     }
-
-//     if(type != "unverified")
-//         g_netmon->removePeer(*peer);
-// LogPrint(BCLog::NET, "[POC] [DBG]: Remove OK\n");
-
-//     //TODO: decrease reputation of nodes that keep claiming unverified connections
-// }
 
 /* connectNode */
 CNode * CNetMon::connectNode(std::string addr){

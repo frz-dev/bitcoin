@@ -18,9 +18,9 @@ EXPERIMENTS
 [ ] until MAL not fully implemented, malicious nodes should be manually connected to each other
 
 PAPER
-[ ] menzionare che nodi riconoscono verified peers da name se outbound, e da poc se inbound
-[ ] malicious monitors do not verify any connection - this is the worst case, in which they try to disconnect the whole network
-[ ] malicious node drops all POCs. there's no point in dropping only for some monitors, as this would not result in the connection to be hidden. Their attack can only succeeds if they hide from the majority of monitors, which is precisely the case in which the node reacts by disconnecting from it.
+[X] menzionare che nodi riconoscono verified peers da name se outbound, e da poc se inbound
+[X] malicious monitors do not verify any connection - this is the worst case, in which they try to disconnect the whole network
+[X] malicious node drops all POCs. there's no point in dropping only for some monitors, as this would not result in the connection to be hidden. Their attack can only succeeds if they hide from the majority of monitors, which is precisely the case in which the node reacts by disconnecting from it.
 [ ] malicious node can fw to other malicious node both POC coming form the monitor and another inbound peer.
     - in the 'monitor' case, if the whole chain is malicious, they can fake the connection. if one of them is honest, it will drop the message
     - in the 'peer' case, the peer can warn the monitor about a fake verified peer
