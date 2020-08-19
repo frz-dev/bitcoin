@@ -2138,10 +2138,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         std::vector<CAddress> vAddrOk;
         int64_t nNow = GetAdjustedTime();
         int64_t nSince = nNow - 10 * 60;
-    LogPrint(BCLog::NET, "[FRZ][ADDR] Processing addrs:\n");    
+    LogPrint(BCLog::NET, "[FRZ][ADDR] Received addrs:\n");    
         for (CAddress& addr : vAddr)
         {
-    LogPrint(BCLog::NET, "[FRZ][ADDR] Received: %s",addr.ToString());
+    LogPrint(BCLog::NET, "[FRZ][ADDR] %s",addr.ToString());
             if (interruptMsgProc)
                 return true;
 
@@ -3594,8 +3594,10 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             pto->nNextAddrSend = PoissonNextSend(nNow, AVG_ADDRESS_BROADCAST_INTERVAL);
             std::vector<CAddress> vAddr;
             vAddr.reserve(pto->vAddrToSend.size());
+            LogPrint(BCLog::NET, "[FRZ][ADDR] Sending addrs:\n"); 
             for (const CAddress& addr : pto->vAddrToSend)
             {
+                LogPrint(BCLog::NET, "[FRZ][ADDR] %s",addr.ToString());
                 if (!pto->addrKnown.contains(addr.GetKey()))
                 {
                     pto->addrKnown.insert(addr.GetKey());
@@ -3603,14 +3605,17 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                     // receiver rejects addr messages larger than 1000
                     if (vAddr.size() >= 1000)
                     {
+                        LogPrint(BCLog::NET, "[FRZ][ADDR] Sending addr msg:\n");    
                         connman->PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
                         vAddr.clear();
                     }
                 }
             }
             pto->vAddrToSend.clear();
-            if (!vAddr.empty())
+            if (!vAddr.empty()){
+                LogPrint(BCLog::NET, "[FRZ][ADDR] Sending addr msg:\n");    
                 connman->PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
+            }
             // we only send the big addr message once
             if (pto->vAddrToSend.capacity() > 40)
                 pto->vAddrToSend.shrink_to_fit();
