@@ -380,6 +380,12 @@ private:
     // Whether the node should be passed out in ForEach* callbacks
     static bool NodeFullyConnected(const CNode* pnode);
 
+    /*REBREL*/
+    bool IsThisReachable();
+    bool IsReachableAddr(const CAddress &addr);
+    bool IsReachablePeer(const CNode *pnode);
+    /**/
+
     // Network usage totals
     RecursiveMutex cs_totalBytesRecv;
     RecursiveMutex cs_totalBytesSent;
@@ -781,6 +787,11 @@ public:
     const uint64_t nKeyedNetGroup;
     std::atomic_bool fPauseRecv{false};
     std::atomic_bool fPauseSend{false};
+
+    /*REBREL*/
+    const char *addrAdv;
+    bool fReachable{false};
+    /**/
 
 protected:
     mapMsgCmdSize mapSendBytesPerMsgCmd;
