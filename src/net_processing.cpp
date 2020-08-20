@@ -2158,11 +2158,11 @@ LogPrint(BCLog::NET, ", FullNode");
 if (g_banman->IsBanned(addr)) LogPrint(BCLog::NET, ", Banned");
             if (g_banman->IsBanned(addr)) continue; // Do not process banned addresses beyond remembering we received them
             bool fReachable = IsReachable(addr);
-if(fReachable) LogPrint(BCLog::NET, ", Reachable, ");
+if(fReachable) LogPrint(BCLog::NET, ", Reachable ");
 if(addr.IsRoutable()) LogPrint(BCLog::NET, ", Routable. ");;
             if (addr.nTime > nSince && !pfrom->fGetAddr && vAddr.size() <= 10 && addr.IsRoutable())
             {
- LogPrint(BCLog::NET, "Relaying addr...\n");
+ LogPrint(BCLog::NET, " -- Relaying addr...\n");
                 // Relay to a limited number of other nodes
                 RelayAddress(addr, fReachable, connman);
             }
@@ -3605,7 +3605,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                     // receiver rejects addr messages larger than 1000
                     if (vAddr.size() >= 1000)
                     {
-                        LogPrint(BCLog::NET, "[FRZ][ADDR] Sending addr msg:\n");    
+                        LogPrint(BCLog::NET, "[FRZ][ADDR] Sending addr msg\n");    
                         connman->PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
                         vAddr.clear();
                     }
@@ -3613,7 +3613,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             }
             pto->vAddrToSend.clear();
             if (!vAddr.empty()){
-                LogPrint(BCLog::NET, "[FRZ][ADDR] Sending addr msg:\n");    
+                LogPrint(BCLog::NET, "[FRZ][ADDR] Sending addr msg\n");    
                 connman->PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
             }
             // we only send the big addr message once
