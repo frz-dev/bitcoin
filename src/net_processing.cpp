@@ -3594,7 +3594,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             pto->nNextAddrSend = PoissonNextSend(nNow, AVG_ADDRESS_BROADCAST_INTERVAL);
             std::vector<CAddress> vAddr;
             vAddr.reserve(pto->vAddrToSend.size());
-            LogPrint(BCLog::NET, "[FRZ][ADDR] Sending addrs: "); 
+            if(pto->vAddrToSend.size()>0) LogPrint(BCLog::NET, "[FRZ][ADDR] Sending addrs: "); 
             for (const CAddress& addr : pto->vAddrToSend)
             {
                 LogPrint(BCLog::NET, "- %s -",addr.ToString());
@@ -3611,6 +3611,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                     }
                 }
             }
+            if(pto->vAddrToSend.size()>0) LogPrint(BCLog::NET, "\n"); 
             pto->vAddrToSend.clear();
             if (!vAddr.empty()){
                 LogPrint(BCLog::NET, "[FRZ][ADDR] Sending addr msg\n");    
