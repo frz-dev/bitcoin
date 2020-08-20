@@ -3605,16 +3605,16 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                     // receiver rejects addr messages larger than 1000
                     if (vAddr.size() >= 1000)
                     {
-                        LogPrint(BCLog::NET, "[FRZ][ADDR] Sending addr msg\n");    
+                        LogPrint(BCLog::NET, "[FRZ][ADDR] PushMessage(ADDR)\n");    
                         connman->PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
                         vAddr.clear();
                     }
                 }
             }
-            if(pto->vAddrToSend.size()>0) LogPrint(BCLog::NET, "\n"); 
+            if (!vAddr.empty()) LogPrint(BCLog::NET, "\n"); 
             pto->vAddrToSend.clear();
             if (!vAddr.empty()){
-                LogPrint(BCLog::NET, "[FRZ][ADDR] Sending addr msg\n");    
+                LogPrint(BCLog::NET, "[FRZ][ADDR] PushMessage(ADDR)\n");    
                 connman->PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
             }
             // we only send the big addr message once
