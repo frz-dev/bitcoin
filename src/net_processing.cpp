@@ -2029,7 +2029,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         }
         else{
             /*FRZ*/
-            LogPrint(BCLog::NET, "[FRZ] Not advertising to pfrom (%s)", pfrom->GetAddrName());
+            LogPrint(BCLog::NET, "[FRZ] Not advertising to pfrom (%s)\n", pfrom->GetAddrName());
             LogPrint(BCLog::NET, "[FRZ] pfrom is %s\n", pfrom->fInbound?"inbound":"outbound");
             LogPrint(BCLog::NET, "[FRZ] pfrom is %s RelayePeer\n", pfrom->IsAddrRelayPeer()?"":"not");
             /**/
@@ -2166,8 +2166,15 @@ if(addr.IsRoutable()) LogPrint(BCLog::NET, ", Routable. ");;
                 // Relay to a limited number of other nodes
                 RelayAddress(addr, fReachable, connman);
             }
-else
+else{
+LogPrint(BCLog::NET, "-- Not relaying (");
+if(!addr.nTime > nSince) LogPrint(BCLog::NET, "- nTime -");
+if(pfrom->fGetAddr) LogPrint(BCLog::NET, "- fGetAddr -");
+if (vAddr.size() > 10) LogPrint(BCLog::NET, "- vAddr size -");
+if(!addr.IsRoutable()) LogPrint(BCLog::NET, "- not routable -");
+LogPrint(BCLog::NET, ")");
 LogPrint(BCLog::NET, "\n");
+}
             // Do not store addresses outside our network
             if (fReachable)
                 vAddrOk.push_back(addr);
@@ -3605,15 +3612,17 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                     // receiver rejects addr messages larger than 1000
                     if (vAddr.size() >= 1000)
                     {
-                        LogPrint(BCLog::NET, "[FRZ][ADDR] PushMessage(ADDR)\n");    
+                        LogPrint(BCLog::NET, "\n"); 
+                        LogPrint(BCLog::NET, "[FRZ][ADDR] PushMessage(ADDR)\n");
                         connman->PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
                         vAddr.clear();
                     }
                 }
             }
-            if (!vAddr.empty()) LogPrint(BCLog::NET, "\n"); 
+            
             pto->vAddrToSend.clear();
             if (!vAddr.empty()){
+                LogPrint(BCLog::NET, "\n"); 
                 LogPrint(BCLog::NET, "[FRZ][ADDR] PushMessage(ADDR)\n");    
                 connman->PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
             }
