@@ -327,6 +327,12 @@ public:
 
     void SetAsmap(std::vector<bool> asmap) { addrman.m_asmap = std::move(asmap); }
 
+    /*REBREL*/
+    bool IsThisReachable();
+    bool TestReachable(const CAddress &addr);
+    bool IsReachablePeer(const CNode *pnode);
+    /**/
+
 private:
     struct ListenSocket {
     public:
@@ -379,12 +385,6 @@ private:
 
     // Whether the node should be passed out in ForEach* callbacks
     static bool NodeFullyConnected(const CNode* pnode);
-
-    /*REBREL*/
-    bool IsThisReachable();
-    bool IsReachableAddr(const CAddress &addr);
-    bool IsReachablePeer(const CNode *pnode);
-    /**/
 
     // Network usage totals
     RecursiveMutex cs_totalBytesRecv;
@@ -789,7 +789,8 @@ public:
     std::atomic_bool fPauseSend{false};
 
     /*REBREL*/
-    const char *addrAdv;
+    bool fAddrAdv{false};
+    CAddress addrAdv;
     bool fReachable{false};
     /**/
 

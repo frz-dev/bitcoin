@@ -2489,6 +2489,20 @@ void ProcessMessage(
             pfrom.fGetAddr = false;
         if (pfrom.fOneShot)
             pfrom.fDisconnect = true;
+
+        /*REBREL*/
+        // The first ADDR received is usually the advertised address
+        // For inbound nodes we test this address to set reachability
+        if(vAddr.size()==1 && !pfrom.fAddrAdv){
+            pfrom.addrAdv = vAddr[0];
+
+            if(pfrom.fInbound && connman->TestReachable(pfrom.addrAdv)){
+                LogPrint(BCLog::NET, "[FRZ] Setting inbound peer (%s) Reachable\n", pfrom.addr.ToString());
+                pfrom.fReachable = true;
+            }
+        }
+        /**/
+        
         return;
     }
 

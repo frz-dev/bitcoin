@@ -1058,11 +1058,6 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
         vNodes.push_back(pnode);
     }
 
-    /*REBREL*/
-    if(IsReachablePeer(pnode))
-        pnode->fReachable = true;
-    /**/
-
     // We received a new connection, harvest entropy from the time (and our peer count)
     RandAddEvent((uint32_t)id);
 }
@@ -2079,6 +2074,11 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         LOCK(cs_vNodes);
         vNodes.push_back(pnode);
     }
+
+    /*REBREL*/
+    // We consider outbound peers as reachable by definition
+    pnode->fReachable = true;
+    /**/
 }
 
 void CConnman::ThreadMessageHandler()
