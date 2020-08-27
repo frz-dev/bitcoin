@@ -938,7 +938,6 @@ public:
 
     void PushAddress(const CAddress& _addr, FastRandomContext &insecure_rand)
     {
-LogPrint(BCLog::NET, "[FRZ][ADDR](peer=%d) vAddrToSend.add( %s )\n", id, _addr.ToString());
         // Known checking here is only to save space from duplicates.
         // SendMessages will filter it again for knowns that were added
         // after addresses were pushed.

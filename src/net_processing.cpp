@@ -3021,11 +3021,14 @@ LogPrint(BCLog::NET, "\n");
         pfrom->vAddrToSend.clear();
         std::vector<CAddress> vAddr = connman->GetAddresses();
         FastRandomContext insecure_rand;
+        LogPrint(BCLog::NET, "[FRZ][ADDR](peer=%d) Pushing addrs [ ", pfrom->GetId());
         for (const CAddress &addr : vAddr) {
             if (!g_banman->IsBanned(addr)) {
+                LogPrint(BCLog::NET, "- %s -", addr.ToString());
                 pfrom->PushAddress(addr, insecure_rand);
             }
         }
+        LogPrint(BCLog::NET, " ]\n");
         return true;
     }
 
