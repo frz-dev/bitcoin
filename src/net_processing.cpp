@@ -2500,6 +2500,7 @@ void ProcessMessage(
                 LogPrint(BCLog::NET, "[FRZ] Setting inbound peer (%s) Reachable\n", pfrom.addr.ToString());
                 pfrom.fReachable = true;
             }
+            else LogPrint(BCLog::NET, "[FRZ] Setting inbound peer (%s) Unreachable\n", pfrom.addr.ToString());
         }
         /**/
         
