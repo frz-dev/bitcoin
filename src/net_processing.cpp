@@ -2275,17 +2275,30 @@ void ProcessMessage(
         }
         if (!vRecv.empty())
             vRecv >> fRelay;
+
+        if (pfrom.fInbound && addrMe.IsRoutable())
+        {
+            SeenLocal(addrMe);
+
+            /*REBREL*/
+            //If reachability is still unset or set to unreachable
+            if(GetPublicAddress()==nullptr || !IsThisReachable()){
+                // If we the peer is inbound we are clearly reachable
+                //CAddress addrLocal = GetLocalAddress(&(pfrom.addr), pfrom.GetLocalServices());
+                // CAddress addrPublic = GetPublicAddress();
+                LogPrint(BCLog::NET, "[FRZ] Received connection to %s (addrMe), setting node reachable\n", addrMe.ToString());
+                // if(addrMe != addrPublic)
+                    SetThisReachable(addrMe);
+            }
+            /**/
+        }
+
         // Disconnect if we connected to ourself
         if (pfrom.fInbound && !connman->CheckIncomingNonce(nNonce))
         {
             LogPrintf("connected to self at %s, disconnecting\n", pfrom.addr.ToString());
             pfrom.fDisconnect = true;
             return;
-        }
-
-        if (pfrom.fInbound && addrMe.IsRoutable())
-        {
-            SeenLocal(addrMe);
         }
 
         // Be shy and don't send version until we hear
@@ -2345,6 +2358,16 @@ void ProcessMessage(
                     LogPrint(BCLog::NET, "ProcessMessages: advertising address %s\n", addr.ToString());
                     pfrom.PushAddress(addr, insecure_rand);
                 }
+
+                /*REBREL*/
+                // Check if the advertised address is reachable
+                if(GetPublicAddress()==nullptr){
+                    LogPrint(BCLog::NET, "[FRZ] Testing advertised addr reachability (%s)\n", addr.ToString());
+                    if(!connman->TestReachable(addr)) //If succeds, the node will be automatically set to REACHABLE
+                        SetThisUnreachable(addr); 
+                    //;
+                }
+                /**/
             }
 
             // Get recent addresses

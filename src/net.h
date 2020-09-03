@@ -328,9 +328,9 @@ public:
     void SetAsmap(std::vector<bool> asmap) { addrman.m_asmap = std::move(asmap); }
 
     /*REBREL*/
-    bool IsThisReachable();
+//    bool IsThisReachable(const CAddress &addr);
     bool TestReachable(const CAddress &addr);
-    bool IsReachablePeer(const CNode *pnode);
+    bool IsPeerReachable(const CNode *pnode);
     /**/
 
 private:
@@ -547,6 +547,13 @@ void SetReachable(enum Network net, bool reachable);
 bool IsReachable(enum Network net);
 /** @returns true if the address is in a reachable network, false otherwise */
 bool IsReachable(const CNetAddr& addr);
+
+/*REBREL*/
+CAddress * GetPublicAddress();
+void SetThisReachable(CAddress &addr);
+void SetThisUnreachable(CAddress &addr);
+bool IsThisReachable();
+/**/
 
 bool AddLocal(const CService& addr, int nScore = LOCAL_NONE);
 bool AddLocal(const CNetAddr& addr, int nScore = LOCAL_NONE);

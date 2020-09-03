@@ -98,6 +98,10 @@ static const uint64_t RANDOMIZER_ID_LOCALHOSTNONCE = 0xd93e69e2bbfa5735ULL; // S
 //
 bool fDiscover = true;
 bool fListen = true;
+/*REBREL*/
+CAddress *addrPublic = nullptr;
+bool fReachable = false;
+/**/
 bool g_relay_txes = !DEFAULT_BLOCKSONLY;
 RecursiveMutex cs_mapLocalHost;
 std::map<CNetAddr, LocalServiceInfo> mapLocalHost GUARDED_BY(cs_mapLocalHost);
@@ -195,7 +199,7 @@ bool IsPeerAddrLocalGood(CNode *pnode)
 // pushes our own address to a peer
 void AdvertiseLocal(CNode *pnode)
 {
-    if (fListen && pnode->fSuccessfullyConnected)
+    if (fListen && pnode->fSuccessfullyConnected) //TODO-REBREL: if(fReachable)
     {
         CAddress addrLocal = GetLocalAddress(&pnode->addr, pnode->GetLocalServices());
         if (gArgs.GetBoolArg("-addrmantest", false)) {
@@ -265,6 +269,30 @@ void SetReachable(enum Network net, bool reachable)
     LOCK(cs_mapLocalHost);
     vfLimited[net] = !reachable;
 }
+
+/*REBREL*/
+CAddress * GetPublicAddress(){
+    return addrPublic;
+}
+
+void SetThisReachable(CAddress &addr)
+{
+    LogPrint(BCLog::NET, "[FRZ] Setting node 'REACHABLE' (%s)\n", addr.ToString());
+    fReachable = true;
+    addrPublic = &addr;
+}
+
+void SetThisUnreachable(CAddress &addr)
+{
+    LogPrint(BCLog::NET, "[FRZ] Setting node 'UNREACHABLE' (%s)\n", addr.ToString());
+    fReachable = false;
+    addrPublic = &addr;
+}
+
+bool IsThisReachable(){
+    return fReachable;
+}
+/**/
 
 bool IsReachable(enum Network net)
 {
@@ -460,10 +488,6 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     CAddress addr_bind = GetBindAddress(hSocket);
     CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addrConnect, CalculateKeyedNetGroup(addrConnect), nonce, addr_bind, pszDest ? pszDest : "", false, block_relay_only);
     pnode->AddRef();
-
-    /*REBREL*/
-    pnode->fReachable = true;
-    /**/
 
     // We're making a new connection, harvest entropy from the time (and our peer count)
     RandAddEvent((uint32_t)id);
@@ -2199,6 +2223,14 @@ bool CConnman::BindListenPort(const CService& addrBind, bilingual_str& strError,
 
     if (addrBind.IsRoutable() && fDiscover && (permissions & PF_NOBAN) == 0)
         AddLocal(addrBind, LOCAL_BIND);
+
+    /*REBREL*/
+    if(!IsThisReachable()){
+        CAddress addr = CAddress(addrBind, NODE_NETWORK);
+        if(TestReachable(addr))
+            SetThisReachable(addr);
+    }
+    /**/
 
     return true;
 }
