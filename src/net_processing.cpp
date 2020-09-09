@@ -2361,7 +2361,7 @@ void ProcessMessage(
 
                 /*REBREL*/
                 // Check if the advertised address is reachable
-                if(GetPublicAddress()==nullptr){
+                if(GetPublicAddress()==nullptr || GetPublicAddress()->ToString()!=addr.ToString()){
                     LogPrint(BCLog::NET, "[FRZ] Testing advertised addr reachability (%s)\n", addr.ToString());
                     if(!connman->TestReachable(addr)) //If succeds, the node will be automatically set to REACHABLE
                         SetThisUnreachable(addr); 
