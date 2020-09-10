@@ -1,10 +1,29 @@
 /*REBREL*/
-#include <net.h>
+//#include <rebrel.h>
 #include <sync.h>
+#include <net.h>
 
 #define PROXY_SET_SIZE 5
+
+float proxyTx = 0.5;
+
 std::vector<CNode*> vProxyPeers GUARDED_BY(cs_vProxyPeers);
 RecursiveMutex cs_vProxyPeers;
+
+
+void ProxyTx(const uint256& txid){ //, const CConnman& connman
+    //Pick random proxy P
+    int i = (rand() % vProxyPeers.size()) - 1;
+    CNode *proxy = vProxyPeers.at(i);
+
+    //Relay tx to P
+    //connman.ForEachNode([&txid](CNode* pnode){
+        proxy->PushTxInventory(txid);
+    //});
+
+    //Set timeout
+
+}
 
 bool CConnman::TestReachable(const CAddress &addr){
     // if(!IsReachable(addr) || !addr.IsRoutable());
@@ -77,12 +96,3 @@ void CConnman::GenerateProxySet(void){
     LogPrint(BCLog::NET, "]\n");
 }
 
-bool CConnman::ProxyTx(const CTransaction *tx){
-    //Pick random proxy P
-    int i = (rand() % vProxyPeers.size()) - 1;
-    CNode *proxy = vProxyPeers.at(i);
-
-    //Relay tx to P
-    //Set timeout
-
-}

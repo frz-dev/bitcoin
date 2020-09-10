@@ -336,7 +336,7 @@ public:
     bool TestReachable(const CAddress &addr);
     bool IsPeerReachable(const CNode *pnode);
     void GenerateProxySet(void);
-    bool ProxyTx(const CTransaction *tx);
+//    bool ProxyTx(const CTransaction *tx);
     /**/
 
 private:

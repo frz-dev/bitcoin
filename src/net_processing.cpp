@@ -33,6 +33,10 @@
 #include <memory>
 #include <typeinfo>
 
+/*REBREL*/
+#include <rebrel.h>
+/**/
+
 /** Expiration time for orphan transactions in seconds */
 static constexpr int64_t ORPHAN_TX_EXPIRE_TIME = 20 * 60;
 /** Minimum time between orphan transactions expire time checks in seconds */
@@ -820,6 +824,11 @@ void PeerLogicValidation::ReattemptInitialBroadcast(CScheduler& scheduler) const
     for (const uint256& txid : unbroadcast_txids) {
         // Sanity check: all unbroadcast txns should exist in the mempool
         if (m_mempool.exists(txid)) {
+            /*REBREL*/ //TODO-REBREL: retrieve tx and check if proxy
+            // if(orphanTx.proxy)
+            //     ProxyTx(txid);
+            // else
+            /**/
             RelayTransaction(txid, *connman);
         } else {
             m_mempool.RemoveUnbroadcastTx(txid, true);
@@ -1948,6 +1957,11 @@ void static ProcessOrphanTx(CConnman* connman, CTxMemPool& mempool, std::set<uin
         if (setMisbehaving.count(fromPeer)) continue;
         if (AcceptToMemoryPool(mempool, orphan_state, porphanTx, &removed_txn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
             LogPrint(BCLog::MEMPOOL, "   accepted orphan tx %s\n", orphanHash.ToString());
+            /*REBREL*/
+            if(porphanTx->proxy)
+                ProxyTx(orphanHash);
+            else
+            /**/
             RelayTransaction(orphanHash, *connman);
             for (unsigned int i = 0; i < orphanTx.vout.size(); i++) {
                 auto it_by_prev = mapOrphanTransactionsByPrev.find(COutPoint(orphanHash, i));
@@ -2866,7 +2880,13 @@ void ProcessMessage(
         if (!AlreadyHave(inv, mempool) &&
             AcceptToMemoryPool(mempool, state, ptx, &lRemovedTxn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
             mempool.check(&::ChainstateActive().CoinsTip());
+            /*REBREL*/
+            if(tx.proxy)
+                ProxyTx(tx.GetHash());
+            else
+            /**/
             RelayTransaction(tx.GetHash(), *connman);
+
             for (unsigned int i = 0; i < tx.vout.size(); i++) {
                 auto it_by_prev = mapOrphanTransactionsByPrev.find(COutPoint(inv.hash, i));
                 if (it_by_prev != mapOrphanTransactionsByPrev.end()) {
@@ -2941,6 +2961,11 @@ void ProcessMessage(
                     LogPrintf("Not relaying non-mempool transaction %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom.GetId());
                 } else {
                     LogPrintf("Force relaying tx %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom.GetId());
+                    /*REBREL*/
+                    if(tx.proxy)
+                        ProxyTx(tx.GetHash());
+                    else
+                    /**/
                     RelayTransaction(tx.GetHash(), *connman);
                 }
             }
