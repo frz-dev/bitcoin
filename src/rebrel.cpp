@@ -29,19 +29,6 @@ bool CConnman::TestReachable(const CAddress &addr){
     return true;
 }
 
-// bool CConnman::IsThisReachable(const CAddress &addr){
-//     // fListen ?
-//     if(!fListen)
-//         return false;
-
-//     // If we have inbound peers, then we are reachable
-//     //TODO: check inbound peers
-
-//     // Try to connect to ourself
-
-//     return TestReachable(addr);
-// }
-
 bool CConnman::IsPeerReachable(const CNode *pnode){
 
     /*Is outbound ?*/
@@ -64,20 +51,30 @@ void CConnman::GenerateProxySet(void){
     LOCK(cs_vNodes);
     LOCK(cs_vProxyPeers);
     //Copy vNodes into vProxyPeers
-    for (int i=0; i<vNodes.size(); i++) 
-        vProxyPeers.push_back(vNodes[i]);
+    bool fReachable = IsThisReachable();
+    //If we are reachable, get unreachable peers
+    if(fReachable){
+        for (int i=0; i<vNodes.size(); i++)
+            if(!vNodes[i]->fReachable)
+                vProxyPeers.push_back(vNodes[i]);
+    }
+    //otherwise, get reachable peers
+    else{
+        for (int i=0; i<vNodes.size(); i++)
+            if(vNodes[i]->fReachable)
+                vProxyPeers.push_back(vNodes[i]);
+    }
+     
     //Shuffle elements
     std::random_shuffle(vProxyPeers.begin(), vProxyPeers.end());
     //Pick first PROXY_SET_SIZE elements
     if(vProxyPeers.size()>PROXY_SET_SIZE)
         vProxyPeers.resize(PROXY_SET_SIZE);
 
-    if(vProxyPeers.size()>0){
-        LogPrint(BCLog::NET, "[FRZ] vProxyPeers: ");
-        for (int i=0; i<vProxyPeers.size(); i++)
-            LogPrint(BCLog::NET, "- %s - ", vProxyPeers[i]->addr.ToString());
-        LogPrint(BCLog::NET, "\n");
-    }
+    LogPrint(BCLog::NET, "[FRZ] vProxyPeers: [");
+    for (int i=0; i<vProxyPeers.size(); i++)
+        LogPrint(BCLog::NET, "- %s - ", vProxyPeers[i]->addr.ToString());
+    LogPrint(BCLog::NET, "]\n");
 }
 
 bool CConnman::ProxyTx(const CTransaction *tx){
