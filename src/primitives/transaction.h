@@ -269,6 +269,9 @@ public:
     const std::vector<CTxOut> vout;
     const int32_t nVersion;
     const uint32_t nLockTime;
+    /*REBREL*/
+    bool proxy{false};
+    /**/
 
 private:
     /** Memory only. */
