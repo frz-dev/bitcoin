@@ -213,6 +213,9 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         throw std::ios_base::failure("Unknown transaction optional data");
     }
     s >> tx.nLockTime;
+    /*REBREL*/
+    s >> tx.proxy;
+    /**/
 }
 
 template<typename Stream, typename TxType>
@@ -242,6 +245,9 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
         }
     }
     s << tx.nLockTime;
+    /*REBREL*/
+    s << tx.proxy;
+    /**/
 }
 
 
@@ -351,6 +357,9 @@ struct CMutableTransaction
     std::vector<CTxOut> vout;
     int32_t nVersion;
     uint32_t nLockTime;
+    /*REBREL*/
+    bool proxy;
+    /**/
 
     CMutableTransaction();
     explicit CMutableTransaction(const CTransaction& tx);
