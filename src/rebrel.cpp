@@ -2,6 +2,7 @@
 //#include <rebrel.h>
 #include <sync.h>
 #include <net.h>
+#include <logging.h>
 
 #define PROXY_SET_SIZE 5
 
@@ -14,11 +15,12 @@ RecursiveMutex cs_vProxyPeers;
 void ProxyTx(const uint256& txid){ //, const CConnman& connman
     //Pick random proxy P
     int i = (rand() % vProxyPeers.size()) - 1;
-    CNode *proxy = vProxyPeers.at(i);
+    class CNode * proxyNode = vProxyPeers.at(i);
 
-    //Relay tx to P
+    /* Relay tx to P */
+    LogPrint(BCLog::NET, "[FRZ] Relaying tx %s to %s\n", txid.ToString(), proxyNode->addr.ToString());
     //connman.ForEachNode([&txid](CNode* pnode){
-        proxy->PushTxInventory(txid);
+        proxyNode->PushTxInventory(txid);
     //});
 
     //Set timeout
