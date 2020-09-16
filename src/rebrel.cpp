@@ -59,33 +59,37 @@ bool CConnman::IsPeerReachable(const CNode *pnode){
         return false;    
 }
 
-void CConnman::GenerateProxySet(void){
-    //Pick random nodes from peer list
-    //Use percentage of current peers (MIN n nodes)
-    vProxyPeers.clear();
+// Returns a set 'num' of reachable or unreachable nodes
+std::vector<CNode*> CConnman::GetRandomNodes(bool reachable, int num){
+    std::vector<CNode*> randNodes;
 
     LOCK(cs_vNodes);
-    LOCK(cs_vProxyPeers);
     //Copy vNodes into vProxyPeers
     bool fReachable = IsThisReachable();
+
     //If we are reachable, get unreachable peers
-    if(fReachable){
-        for (int i=0; i<vNodes.size(); i++)
-            if(!vNodes[i]->fReachable)
-                vProxyPeers.push_back(vNodes[i]);
-    }
     //otherwise, get reachable peers
-    else{
-        for (int i=0; i<vNodes.size(); i++)
-            if(vNodes[i]->fReachable)
-                vProxyPeers.push_back(vNodes[i]);
+    for (int i=0; i<vNodes.size(); i++){
+        if(vNodes[i]->fReachable == reachable)
+            randNodes.push_back(vNodes[i]);
     }
      
     //Shuffle elements
-    std::random_shuffle(vProxyPeers.begin(), vProxyPeers.end());
+    std::random_shuffle(randNodes.begin(), randNodes.end());
     //Pick first PROXY_SET_SIZE elements
-    if(vProxyPeers.size()>PROXY_SET_SIZE)
-        vProxyPeers.resize(PROXY_SET_SIZE);
+    if(randNodes.size()>num)
+        randNodes.resize(num);
+
+    return randNodes;
+}
+
+void CConnman::GenerateProxySet(void){
+    LOCK(cs_vProxyPeers);
+    vProxyPeers.clear();
+
+    //Pick random nodes from peer list
+    //Use percentage of current peers (MIN n nodes)
+    vProxyPeers = GetRandomNodes(IsThisReachable(), PROXY_SET_SIZE);
 
     LogPrint(BCLog::NET, "[FRZ] vProxyPeers: [");
     for (int i=0; i<vProxyPeers.size(); i++)

@@ -327,11 +327,10 @@ public:
     void SetAsmap(std::vector<bool> asmap) { addrman.m_asmap = std::move(asmap); }
 
     /*REBREL*/
-//    bool IsThisReachable(const CAddress &addr);
     bool TestReachable(const CAddress &addr);
     bool IsPeerReachable(const CNode *pnode);
     void GenerateProxySet(void);
-//    bool ProxyTx(const CTransaction *tx);
+    std::vector<CNode*> GetRandomNodes(bool reachable, int num);
     /**/
 
 private:
