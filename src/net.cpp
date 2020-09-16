@@ -2222,14 +2222,6 @@ bool CConnman::BindListenPort(const CService& addrBind, bilingual_str& strError,
     if (addrBind.IsRoutable() && fDiscover && (permissions & PF_NOBAN) == 0)
         AddLocal(addrBind, LOCAL_BIND);
 
-    /*REBREL*/
-    // if(!IsThisReachable()){
-    //     CAddress addr = CAddress(addrBind, NODE_NETWORK);
-    //     if(TestReachable(addr))
-    //         SetThisReachable(addr);
-    // }
-    /**/
-
     return true;
 }
 
