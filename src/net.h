@@ -35,7 +35,6 @@
 #include <arpa/inet.h>
 #endif
 
-
 class CScheduler;
 class CNode;
 class BanMan;
@@ -50,10 +49,6 @@ static const bool DEFAULT_WHITELISTFORCERELAY = false;
 static const int TIMEOUT_INTERVAL = 20 * 60;
 /** Run the feeler connection loop once every 2 minutes or 120 seconds. **/
 static const int FEELER_INTERVAL = 120;
-/*REBREL*/
-/** Regenerate the proxy set every minute. **/
-static const int EPOCH_INTERVAL = 60;
-/**/
 /** The maximum number of new addresses to accumulate before announcing. */
 static const unsigned int MAX_ADDR_TO_SEND = 1000;
 /** Maximum length of incoming protocol messages (no message over 4 MB is currently acceptable). */
@@ -332,11 +327,10 @@ public:
     void SetAsmap(std::vector<bool> asmap) { addrman.m_asmap = std::move(asmap); }
 
     /*REBREL*/
-//    bool IsThisReachable(const CAddress &addr);
     bool TestReachable(const CAddress &addr);
     bool IsPeerReachable(const CNode *pnode);
     void GenerateProxySet(void);
-//    bool ProxyTx(const CTransaction *tx);
+    std::vector<CNode*> GetRandomNodes(bool reachable, int num);
     /**/
 
 private:
@@ -366,10 +360,7 @@ private:
     void SocketHandler();
     void ThreadSocketHandler();
     void ThreadDNSAddressSeed();
-    /*REBREL*/
-    void ThreadGenerateProxySet();
-    /**/
-
+    
     uint64_t CalculateKeyedNetGroup(const CAddress& ad) const;
 
     CNode* FindNode(const CNetAddr& ip);

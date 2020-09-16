@@ -13,6 +13,8 @@
 
 #include <future>
 
+#include <rebrel.h> /*REBREL*/
+
 TransactionError BroadcastTransaction(NodeContext& node, const CTransactionRef tx, std::string& err_string, const CAmount& max_tx_fee, bool relay, bool wait_callback)
 {
     // BroadcastTransaction can be called by either sendrawtransaction RPC or wallet RPCs.
@@ -82,7 +84,9 @@ TransactionError BroadcastTransaction(NodeContext& node, const CTransactionRef t
         // best-effort of initial broadcast
         node.mempool->AddUnbroadcastTx(hashTx);
 
-        RelayTransaction(hashTx, *node.connman);
+        /*REBREL RelayTransaction(hashTx, *node.connman);*/
+        ProxyTx(tx, *node.connman);
+        /**/
     }
 
     return TransactionError::OK;

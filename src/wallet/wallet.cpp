@@ -3008,11 +3008,6 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CTransac
             return false;
         }
 
-        /*REBREL*/
-        LogPrint(BCLog::NET, "[FRZ] Setting new transaction as 'proxy'\n");
-        txNew.proxy = true;
-        /**/
-
         // Return the constructed transaction data.
         tx = MakeTransactionRef(std::move(txNew));
 

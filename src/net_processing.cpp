@@ -33,8 +33,9 @@
 #include <memory>
 #include <typeinfo>
 
-/*REBREL*/
+/*REBREL*/ 
 #include <rebrel.h>
+#include <random>
 /**/
 
 /** Expiration time for orphan transactions in seconds */
@@ -824,11 +825,6 @@ void PeerLogicValidation::ReattemptInitialBroadcast(CScheduler& scheduler) const
     for (const uint256& txid : unbroadcast_txids) {
         // Sanity check: all unbroadcast txns should exist in the mempool
         if (m_mempool.exists(txid)) {
-            /*REBREL*/ //TODO-REBREL: retrieve tx and check if proxy
-            // if(orphanTx.proxy)
-            //     ProxyTx(txid);
-            // else
-            /**/
             RelayTransaction(txid, *connman);
         } else {
             m_mempool.RemoveUnbroadcastTx(txid, true);
@@ -1957,11 +1953,6 @@ void static ProcessOrphanTx(CConnman* connman, CTxMemPool& mempool, std::set<uin
         if (setMisbehaving.count(fromPeer)) continue;
         if (AcceptToMemoryPool(mempool, orphan_state, porphanTx, &removed_txn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
             LogPrint(BCLog::MEMPOOL, "   accepted orphan tx %s\n", orphanHash.ToString());
-            /*REBREL*/
-            if(porphanTx->proxy)
-                ProxyTx(orphanHash);
-            else
-            /**/
             RelayTransaction(orphanHash, *connman);
             for (unsigned int i = 0; i < orphanTx.vout.size(); i++) {
                 auto it_by_prev = mapOrphanTransactionsByPrev.find(COutPoint(orphanHash, i));
@@ -2290,29 +2281,27 @@ void ProcessMessage(
         if (!vRecv.empty())
             vRecv >> fRelay;
 
-        if (pfrom.fInbound && addrMe.IsRoutable())
-        {
-            SeenLocal(addrMe);
-
-            /*REBREL*/
-            //If reachability is still unset or set to unreachable
-            if(GetPublicAddress()==nullptr || !IsThisReachable()){
-                // If we the peer is inbound we are clearly reachable
-                //CAddress addrLocal = GetLocalAddress(&(pfrom.addr), pfrom.GetLocalServices());
-                // CAddress addrPublic = GetPublicAddress();
-                LogPrint(BCLog::NET, "[FRZ] Received connection to %s (addrMe), setting node reachable\n", addrMe.ToString());
-                // if(addrMe != addrPublic)
-                    SetThisReachable(addrMe);
-            }
-            /**/
-        }
-
         // Disconnect if we connected to ourself
         if (pfrom.fInbound && !connman->CheckIncomingNonce(nNonce))
         {
             LogPrintf("connected to self at %s, disconnecting\n", pfrom.addr.ToString());
             pfrom.fDisconnect = true;
             return;
+        }
+
+        if (pfrom.fInbound && addrMe.IsRoutable())
+        {
+            SeenLocal(addrMe);
+
+            /*REBREL*/
+            //If reachability is still unset or set to unreachable
+            // If we the peer is inbound we are clearly reachable
+            CAddress *addrPublic = GetPublicAddress();
+            if(!IsThisReachable() || addrPublic==nullptr || addrPublic->ToString()!=addrMe.ToString()){
+                LogPrint(BCLog::NET, "[FRZ] Received connection to %s (addrMe), setting node reachable\n", addrMe.ToString());
+                SetThisReachable(addrMe);
+            }
+            /**/
         }
 
         // Be shy and don't send version until we hear
@@ -2377,7 +2366,9 @@ void ProcessMessage(
                 // Check if the advertised address is reachable
                 if(GetPublicAddress()==nullptr || GetPublicAddress()->ToString()!=addr.ToString()){
                     LogPrint(BCLog::NET, "[FRZ] Testing advertised addr reachability (%s)\n", addr.ToString());
-                    if(!connman->TestReachable(addr)) //If succeds, the node will be automatically set to REACHABLE
+                    if(connman->TestReachable(addr)) //If succeds, the node will be automatically set to REACHABLE
+                        SetThisReachable(addr); 
+                    else
                         SetThisUnreachable(addr); 
                     //;
                 }
@@ -2531,8 +2522,6 @@ void ProcessMessage(
         // The first ADDR received is usually the advertised address
         // For inbound nodes we test this address to set reachability
         if(pfrom.fInbound && vAddr.size()==1 && !pfrom.fAddrAdv){
-            // for (CAddress& addr : vAddr){
-            // }
                 LogPrint(BCLog::NET, "[FRZ] Received ADDR: %s from %s\n", vAddr[0].ToString(), pfrom.addr.ToString());
             pfrom.addrAdv = vAddr[0];
             pfrom.fAddrAdv = true;
@@ -2603,6 +2592,15 @@ void ProcessMessage(
 
         for (CInv &inv : vInv)
         {
+            /*REBREL*/
+            //if hash = our proxied transaction, unset reproxy timeout
+            CTransactionRef ptx = FindProxiedTx(inv.hash);
+            if(ptx != nullptr){
+                SetTxBroadcasted(ptx);
+                mempool.RemoveUnbroadcastTx(inv.hash);
+            }
+            /**/
+            
             if (interruptMsgProc)
                 return;
 
@@ -2848,6 +2846,34 @@ void ProcessMessage(
         return;
     }
 
+    /*REBREL*/
+    if(msg_type == NetMsgType::PROXYTX){
+        CTransactionRef ptx;
+        vRecv >> ptx;
+
+        //TODO?        
+        // CInv inv(MSG_TX, tx.GetHash());
+        // pfrom.AddInventoryKnown(inv);
+
+        //TODO?: add to "proxied" list
+        //If we proxied tx and receive it back, broadcast
+        //If it is our tx, reproxy
+
+        //broadcast with probability p        
+        std::random_device rd; 
+        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+        std::uniform_int_distribution<> distrib(1, 100);
+    
+        if (distrib(gen) > 70){
+            LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());
+            RelayTransaction(ptx->GetHash(), *connman);
+        }
+        else{
+            ProxyTx(ptx, *connman);
+        }
+    }
+    /**/
+
     if (msg_type == NetMsgType::TX) {
         // Stop processing the transaction early if
         // 1) We are in blocks only mode and peer has no relay permission
@@ -2880,11 +2906,6 @@ void ProcessMessage(
         if (!AlreadyHave(inv, mempool) &&
             AcceptToMemoryPool(mempool, state, ptx, &lRemovedTxn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
             mempool.check(&::ChainstateActive().CoinsTip());
-            /*REBREL*/
-            if(tx.proxy)
-                ProxyTx(tx.GetHash());
-            else
-            /**/
             RelayTransaction(tx.GetHash(), *connman);
 
             for (unsigned int i = 0; i < tx.vout.size(); i++) {
@@ -2961,11 +2982,6 @@ void ProcessMessage(
                     LogPrintf("Not relaying non-mempool transaction %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom.GetId());
                 } else {
                     LogPrintf("Force relaying tx %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom.GetId());
-                    /*REBREL*/
-                    if(tx.proxy)
-                        ProxyTx(tx.GetHash());
-                    else
-                    /**/
                     RelayTransaction(tx.GetHash(), *connman);
                 }
             }

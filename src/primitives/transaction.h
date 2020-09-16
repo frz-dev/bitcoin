@@ -12,6 +12,8 @@
 #include <serialize.h>
 #include <uint256.h>
 
+#include <chrono> /*REBREL*/
+
 static const int SERIALIZE_TRANSACTION_NO_WITNESS = 0x40000000;
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
@@ -213,9 +215,6 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         throw std::ios_base::failure("Unknown transaction optional data");
     }
     s >> tx.nLockTime;
-    /*REBREL*/
-    s >> tx.proxy;
-    /**/
 }
 
 template<typename Stream, typename TxType>
@@ -245,9 +244,6 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
         }
     }
     s << tx.nLockTime;
-    /*REBREL*/
-    s << tx.proxy;
-    /**/
 }
 
 
@@ -275,8 +271,11 @@ public:
     const std::vector<CTxOut> vout;
     const int32_t nVersion;
     const uint32_t nLockTime;
+
     /*REBREL*/
-    bool proxy{false};
+    mutable bool proxied{false};
+    mutable bool broadcasted{false}; //delete?
+    mutable std::chrono::seconds m_next_broadcast_test {0}; //GUARDED_BY(cs_sendProcessing){0};
     /**/
 
 private:
@@ -357,9 +356,6 @@ struct CMutableTransaction
     std::vector<CTxOut> vout;
     int32_t nVersion;
     uint32_t nLockTime;
-    /*REBREL*/
-    bool proxy;
-    /**/
 
     CMutableTransaction();
     explicit CMutableTransaction(const CTransaction& tx);

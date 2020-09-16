@@ -2,28 +2,42 @@
 //#include <rebrel.h>
 #include <sync.h>
 #include <net.h>
-#include <logging.h>
+#include <primitives/transaction.h>
+#include <netmessagemaker.h>
 
 #define PROXY_SET_SIZE 5
+const std::chrono::seconds PROXIED_BROADCAST_TIMEOUT {1 * 60};
+std::vector<CTransactionRef> vProxiedTransactions GUARDED_BY(cs_vProxiedTransactions);
+RecursiveMutex cs_vProxiedTransactions;
 
 float proxyTx = 0.5;
 
 std::vector<CNode*> vProxyPeers GUARDED_BY(cs_vProxyPeers);
 RecursiveMutex cs_vProxyPeers;
 
-
-void ProxyTx(const uint256& txid){ //, const CConnman& connman
+void ProxyTx(const CTransactionRef& tx, CConnman& connman){
     //Pick random proxy P
+    LOCK(cs_vProxyPeers);
     int i = (rand() % vProxyPeers.size()) - 1;
     class CNode * proxyNode = vProxyPeers.at(i);
 
-    /* Relay tx to P */
-    LogPrint(BCLog::NET, "[FRZ] Relaying tx %s to %s\n", txid.ToString(), proxyNode->addr.ToString());
-    //connman.ForEachNode([&txid](CNode* pnode){
-        proxyNode->PushTxInventory(txid);
+    /*INV version*/
+    //Relay tx to P
+    //proxy->PushTxInventory(txid);
     //});
+    /**/
 
-    //Set timeout
+    const CNetMsgMaker msgMaker(proxyNode->GetSendVersion());
+    connman.PushMessage(proxyNode, msgMaker.Make(NetMsgType::PROXYTX, *tx));
+
+    tx->proxied = true;
+    auto current_time = GetTime<std::chrono::seconds>();
+    tx->m_next_broadcast_test = current_time + PROXIED_BROADCAST_TIMEOUT;
+    //add to proxied set
+    LOCK(cs_vProxiedTransactions);
+    vProxiedTransactions.push_back(tx);
+
+    //TODO: Set timeout or just calculate from nTimeBroadcasted
 
 }
 
@@ -58,43 +72,65 @@ bool CConnman::IsPeerReachable(const CNode *pnode){
 
     /*IsRoutable ?*/
     if(!TestReachable(pnode->addr))
-        return false;
-
-
-    
+        return false;    
 }
 
-void CConnman::GenerateProxySet(void){
-    //Pick random nodes from peer list
-    //Use percentage of current peers (MIN n nodes)
-    vProxyPeers.clear();
+// Returns a set 'num' of reachable or unreachable nodes
+std::vector<CNode*> CConnman::GetRandomNodes(bool reachable, int num){
+    std::vector<CNode*> randNodes;
 
     LOCK(cs_vNodes);
-    LOCK(cs_vProxyPeers);
     //Copy vNodes into vProxyPeers
     bool fReachable = IsThisReachable();
+
     //If we are reachable, get unreachable peers
-    if(fReachable){
-        for (int i=0; i<vNodes.size(); i++)
-            if(!vNodes[i]->fReachable)
-                vProxyPeers.push_back(vNodes[i]);
-    }
     //otherwise, get reachable peers
-    else{
-        for (int i=0; i<vNodes.size(); i++)
-            if(vNodes[i]->fReachable)
-                vProxyPeers.push_back(vNodes[i]);
+    for (int i=0; i<vNodes.size(); i++){
+        if(vNodes[i]->fReachable == reachable)
+            randNodes.push_back(vNodes[i]);
     }
      
     //Shuffle elements
-    std::random_shuffle(vProxyPeers.begin(), vProxyPeers.end());
+    std::random_shuffle(randNodes.begin(), randNodes.end());
     //Pick first PROXY_SET_SIZE elements
-    if(vProxyPeers.size()>PROXY_SET_SIZE)
-        vProxyPeers.resize(PROXY_SET_SIZE);
+    if(randNodes.size()>num)
+        randNodes.resize(num);
+
+    return randNodes;
+}
+
+void CConnman::GenerateProxySet(void){
+    LOCK(cs_vProxyPeers);
+    vProxyPeers.clear();
+
+    //Pick random nodes from peer list
+    //Use percentage of current peers (MIN n nodes)
+    vProxyPeers = GetRandomNodes(!IsThisReachable(), PROXY_SET_SIZE);
 
     LogPrint(BCLog::NET, "[FRZ] vProxyPeers: [");
     for (int i=0; i<vProxyPeers.size(); i++)
         LogPrint(BCLog::NET, "- %s - ", vProxyPeers[i]->addr.ToString());
     LogPrint(BCLog::NET, "]\n");
+}
+
+/***** PROXIED TX *****/
+CTransactionRef FindProxiedTx(const uint256 txid){
+    for(auto ptx : vProxiedTransactions){
+        if(ptx->GetHash() == txid)
+            return ptx;
+    }
+    return nullptr;
+}
+
+void SetTxBroadcasted(CTransactionRef ptx){
+    /*Delete tx from proxied transactions*/
+    std::vector<CTransactionRef>::iterator toErease;
+    toErease=std::find(vProxiedTransactions.begin(), vProxiedTransactions.end(), ptx);
+
+    // And then erase if found
+    if (toErease!=vProxiedTransactions.end()){
+        vProxiedTransactions.erase(toErease);
+    }
+
 }
 
