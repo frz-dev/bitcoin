@@ -105,7 +105,7 @@ void CConnman::GenerateProxySet(void){
 
     //Pick random nodes from peer list
     //Use percentage of current peers (MIN n nodes)
-    vProxyPeers = GetRandomNodes(IsThisReachable(), PROXY_SET_SIZE);
+    vProxyPeers = GetRandomNodes(!IsThisReachable(), PROXY_SET_SIZE);
 
     LogPrint(BCLog::NET, "[FRZ] vProxyPeers: [");
     for (int i=0; i<vProxyPeers.size(); i++)
