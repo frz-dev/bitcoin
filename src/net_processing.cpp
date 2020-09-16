@@ -2590,6 +2590,15 @@ void ProcessMessage(
 
         for (CInv &inv : vInv)
         {
+            /*REBREL*/
+            //if hash = our proxied transaction, unset reproxy timeout
+            CTransactionRef ptx = FindProxiedTx(inv.hash);
+            if(ptx != nullptr){
+                SetTxBroadcasted(ptx);
+                mempool.RemoveUnbroadcastTx(inv.hash);
+            }
+            /**/
+            
             if (interruptMsgProc)
                 return;
 

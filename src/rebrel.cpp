@@ -113,3 +113,24 @@ void CConnman::GenerateProxySet(void){
     LogPrint(BCLog::NET, "]\n");
 }
 
+/***** PROXIED TX *****/
+CTransactionRef FindProxiedTx(const uint256 txid){
+    for(auto ptx : vProxiedTransactions){
+        if(ptx->GetHash() == txid)
+            return ptx;
+    }
+    return nullptr;
+}
+
+void SetTxBroadcasted(CTransactionRef ptx){
+    /*Delete tx from proxied transactions*/
+    std::vector<CTransactionRef>::iterator toErease;
+    toErease=std::find(vProxiedTransactions.begin(), vProxiedTransactions.end(), ptx);
+
+    // And then erase if found
+    if (toErease!=vProxiedTransactions.end()){
+        vProxiedTransactions.erase(toErease);
+    }
+
+}
+
