@@ -46,6 +46,8 @@ static_assert(MINIUPNPC_API_VERSION >= 10, "miniUPnPc API version >= 10 assumed"
 
 #include <math.h>
 
+/*REBREL*/ #include <rebrel.h>
+
 // How often to dump addresses to peers.dat
 static constexpr std::chrono::minutes DUMP_PEERS_INTERVAL{15};
 
@@ -2105,25 +2107,6 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
     /**/
 }
 
-/*REBREL*/
-void CConnman::ThreadGenerateProxySet(){
-    // LogPrint(BCLog::NET, "[FRZ] ThreadGenerateProxySet\n");
-    int64_t nStart = GetTime();
-    int64_t nNextEpoch = PoissonNextSend(nStart*1000*1000, EPOCH_INTERVAL);
-
-    while (true)
-    {
-        int64_t nTime = GetTimeMicros(); // The current time right now (in microseconds).
-        if (nTime > nNextEpoch) {
-            nNextEpoch = PoissonNextSend(nTime, EPOCH_INTERVAL);
-            GenerateProxySet();
-        } else {
-            continue;
-        }
-    }
-}
-/**/
-
 void CConnman::ThreadMessageHandler()
 {
     while (!flagInterruptMsgProc)
@@ -2459,9 +2442,8 @@ bool CConnman::Start(CScheduler& scheduler, const Options& connOptions)
     scheduler.scheduleEvery([this] { DumpAddresses(); }, DUMP_PEERS_INTERVAL);
 
     /*REBREL*/
-    threadGenerateProxySet = std::thread(&TraceThread<std::function<void()> >, "proxyset", std::function<void()>(std::bind(&CConnman::ThreadGenerateProxySet, this)));
+    scheduler.scheduleEvery([this] { GenerateProxySet(); }, EPOCH_INTERVAL);
     /**/
-
     return true;
 }
 

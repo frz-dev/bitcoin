@@ -56,10 +56,7 @@ bool CConnman::IsPeerReachable(const CNode *pnode){
 
     /*IsRoutable ?*/
     if(!TestReachable(pnode->addr))
-        return false;
-
-
-    
+        return false;    
 }
 
 void CConnman::GenerateProxySet(void){
