@@ -2,8 +2,13 @@
 //#include <rebrel.h>
 #include <sync.h>
 #include <net.h>
+#include <primitives/transaction.h>
+#include <netmessagemaker.h>
 
 #define PROXY_SET_SIZE 5
+const std::chrono::seconds PROXIED_BROADCAST_TIMEOUT {1 * 60};
+std::vector<CTransactionRef> vProxiedTransactions GUARDED_BY(cs_vProxiedTransactions);
+RecursiveMutex cs_vProxiedTransactions;
 
 float proxyTx = 0.5;
 
@@ -11,17 +16,29 @@ std::vector<CNode*> vProxyPeers GUARDED_BY(cs_vProxyPeers);
 RecursiveMutex cs_vProxyPeers;
 
 
-void ProxyTx(const uint256& txid){ //, const CConnman& connman
+void ProxyTx(const CTransactionRef& tx, CConnman& connman){
     //Pick random proxy P
+    LOCK(cs_vProxyPeers);
     int i = (rand() % vProxyPeers.size()) - 1;
     CNode *proxy = vProxyPeers.at(i);
 
+    /*INV version*/
     //Relay tx to P
-    //connman.ForEachNode([&txid](CNode* pnode){
-        proxy->PushTxInventory(txid);
+    //proxy->PushTxInventory(txid);
     //});
+    /**/
 
-    //Set timeout
+    const CNetMsgMaker msgMaker(proxy->GetSendVersion());
+    connman.PushMessage(proxy, msgMaker.Make(NetMsgType::PROXYTX, *tx));
+
+    tx->proxied = true;
+    auto current_time = GetTime<std::chrono::seconds>();
+    tx->m_next_broadcast_test = current_time + PROXIED_BROADCAST_TIMEOUT;
+    //add to proxied set
+    LOCK(cs_vProxiedTransactions);
+    vProxiedTransactions.push_back(tx);
+
+    //TODO: Set timeout or just calculate from nTimeBroadcasted
 
 }
 

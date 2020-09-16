@@ -33,8 +33,9 @@
 #include <memory>
 #include <typeinfo>
 
-/*REBREL*/
+/*REBREL*/ 
 #include <rebrel.h>
+//#include <random>
 /**/
 
 /** Expiration time for orphan transactions in seconds */
@@ -2286,13 +2287,11 @@ void ProcessMessage(
 
             /*REBREL*/
             //If reachability is still unset or set to unreachable
-            if(GetPublicAddress()==nullptr || !IsThisReachable()){
-                // If we the peer is inbound we are clearly reachable
-                //CAddress addrLocal = GetLocalAddress(&(pfrom.addr), pfrom.GetLocalServices());
-                // CAddress addrPublic = GetPublicAddress();
+            // If we the peer is inbound we are clearly reachable
+            CAddress *addrPublic = GetPublicAddress();
+            if(addrPublic==nullptr || !IsThisReachable() || *addrPublic!=addrMe){
                 LogPrint(BCLog::NET, "[FRZ] Received connection to %s (addrMe), setting node reachable\n", addrMe.ToString());
-                // if(addrMe != addrPublic)
-                    SetThisReachable(addrMe);
+                SetThisReachable(addrMe);
             }
             /**/
         }
@@ -2837,6 +2836,38 @@ void ProcessMessage(
         connman->PushMessage(&pfrom, msgMaker.Make(NetMsgType::HEADERS, vHeaders));
         return;
     }
+
+    /*REBREL*/
+    if(msg_type == NetMsgType::PROXYTX){
+        CTransactionRef ptx;
+        vRecv >> ptx;
+        // const CTransaction& tx = *ptx;
+        // tx.proxy = true;
+
+        //TODO?        
+        // CInv inv(MSG_TX, tx.GetHash());
+        // pfrom.AddInventoryKnown(inv);
+
+        //TODO?: add to "proxied" list
+        //If we proxied tx and receive it back, broadcast
+        //If it is our tx, reproxy
+
+        //broadcast with probability p
+
+        
+        // std::random_device rd; 
+        // std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+        // std::uniform_int_distribution<> distrib(1, 100);
+    
+        // if (distrib(gen) > 70){
+        //     LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash());
+        //     RelayTransaction(ptx->GetHash(), *connman);
+        // }
+        // else{
+            ProxyTx(ptx, *connman);
+        // }
+    }
+    /**/
 
     if (msg_type == NetMsgType::TX) {
         // Stop processing the transaction early if

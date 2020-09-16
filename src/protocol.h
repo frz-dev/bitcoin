@@ -120,6 +120,7 @@ extern const char* TX;
  * @since protocol version 31800.
  * @see https://bitcoin.org/en/developer-reference#headers
  */
+extern const char* PROXYTX; /*REBREL*/
 extern const char* HEADERS;
 /**
  * The block message transmits a single serialized block.
