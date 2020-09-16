@@ -35,7 +35,7 @@
 
 /*REBREL*/ 
 #include <rebrel.h>
-//#include <random>
+#include <random>
 /**/
 
 /** Expiration time for orphan transactions in seconds */
@@ -2520,8 +2520,6 @@ void ProcessMessage(
         // The first ADDR received is usually the advertised address
         // For inbound nodes we test this address to set reachability
         if(pfrom.fInbound && vAddr.size()==1 && !pfrom.fAddrAdv){
-            // for (CAddress& addr : vAddr){
-            // }
                 LogPrint(BCLog::NET, "[FRZ] Received ADDR: %s from %s\n", vAddr[0].ToString(), pfrom.addr.ToString());
             pfrom.addrAdv = vAddr[0];
             pfrom.fAddrAdv = true;
@@ -2841,8 +2839,6 @@ void ProcessMessage(
     if(msg_type == NetMsgType::PROXYTX){
         CTransactionRef ptx;
         vRecv >> ptx;
-        // const CTransaction& tx = *ptx;
-        // tx.proxy = true;
 
         //TODO?        
         // CInv inv(MSG_TX, tx.GetHash());
@@ -2852,20 +2848,18 @@ void ProcessMessage(
         //If we proxied tx and receive it back, broadcast
         //If it is our tx, reproxy
 
-        //broadcast with probability p
-
-        
-        // std::random_device rd; 
-        // std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-        // std::uniform_int_distribution<> distrib(1, 100);
+        //broadcast with probability p        
+        std::random_device rd; 
+        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+        std::uniform_int_distribution<> distrib(1, 100);
     
-        // if (distrib(gen) > 70){
-        //     LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash());
-        //     RelayTransaction(ptx->GetHash(), *connman);
-        // }
-        // else{
+        if (distrib(gen) > 70){
+            LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());
+            RelayTransaction(ptx->GetHash(), *connman);
+        }
+        else{
             ProxyTx(ptx, *connman);
-        // }
+        }
     }
     /**/
 

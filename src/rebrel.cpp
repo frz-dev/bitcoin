@@ -15,7 +15,6 @@ float proxyTx = 0.5;
 std::vector<CNode*> vProxyPeers GUARDED_BY(cs_vProxyPeers);
 RecursiveMutex cs_vProxyPeers;
 
-
 void ProxyTx(const CTransactionRef& tx, CConnman& connman){
     //Pick random proxy P
     LOCK(cs_vProxyPeers);
