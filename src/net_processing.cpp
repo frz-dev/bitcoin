@@ -2281,6 +2281,14 @@ void ProcessMessage(
         if (!vRecv.empty())
             vRecv >> fRelay;
 
+        // Disconnect if we connected to ourself
+        if (pfrom.fInbound && !connman->CheckIncomingNonce(nNonce))
+        {
+            LogPrintf("connected to self at %s, disconnecting\n", pfrom.addr.ToString());
+            pfrom.fDisconnect = true;
+            return;
+        }
+
         if (pfrom.fInbound && addrMe.IsRoutable())
         {
             SeenLocal(addrMe);
@@ -2289,19 +2297,11 @@ void ProcessMessage(
             //If reachability is still unset or set to unreachable
             // If we the peer is inbound we are clearly reachable
             CAddress *addrPublic = GetPublicAddress();
-            if(addrPublic==nullptr || !IsThisReachable() || *addrPublic!=addrMe){
+            if(!IsThisReachable() || addrPublic==nullptr || addrPublic->ToString()!=addrMe.ToString()){
                 LogPrint(BCLog::NET, "[FRZ] Received connection to %s (addrMe), setting node reachable\n", addrMe.ToString());
                 SetThisReachable(addrMe);
             }
             /**/
-        }
-
-        // Disconnect if we connected to ourself
-        if (pfrom.fInbound && !connman->CheckIncomingNonce(nNonce))
-        {
-            LogPrintf("connected to self at %s, disconnecting\n", pfrom.addr.ToString());
-            pfrom.fDisconnect = true;
-            return;
         }
 
         // Be shy and don't send version until we hear
@@ -2366,7 +2366,9 @@ void ProcessMessage(
                 // Check if the advertised address is reachable
                 if(GetPublicAddress()==nullptr || GetPublicAddress()->ToString()!=addr.ToString()){
                     LogPrint(BCLog::NET, "[FRZ] Testing advertised addr reachability (%s)\n", addr.ToString());
-                    if(!connman->TestReachable(addr)) //If succeds, the node will be automatically set to REACHABLE
+                    if(connman->TestReachable(addr)) //If succeds, the node will be automatically set to REACHABLE
+                        SetThisReachable(addr); 
+                    else
                         SetThisUnreachable(addr); 
                     //;
                 }

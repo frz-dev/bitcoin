@@ -101,8 +101,8 @@ static const uint64_t RANDOMIZER_ID_LOCALHOSTNONCE = 0xd93e69e2bbfa5735ULL; // S
 bool fDiscover = true;
 bool fListen = true;
 /*REBREL*/
-CAddress *addrPublic = nullptr;
-bool fReachable = false;
+static CAddress *addrPublic = nullptr;
+static bool fReachable = false;
 /**/
 bool g_relay_txes = !DEFAULT_BLOCKSONLY;
 RecursiveMutex cs_mapLocalHost;
