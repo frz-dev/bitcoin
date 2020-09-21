@@ -2859,11 +2859,16 @@ void ProcessMessage(
     }
 
     /*REBREL*/
+    bool proxyTx = false;
+    bool doBroadcast = false;
+    int probRelay = 50;
     if(msg_type == NetMsgType::PROXYTX){
-        CTransactionRef ptx;
-        vRecv >> ptx;
+        proxyTx = true;
 
-        //TODO?        
+        // CTransactionRef ptx;
+        // vRecv >> ptx;
+
+        // //TODO?        
         // CInv inv(MSG_TX, tx.GetHash());
         // pfrom.AddInventoryKnown(inv);
 
@@ -2878,17 +2883,20 @@ void ProcessMessage(
         std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
         std::uniform_int_distribution<> distrib(1, 100);
     
-        if (distrib(gen) > 70){
-            LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());
-            RelayTransaction(ptx->GetHash(), *connman);
-        }
-        else{
-            ProxyTx(ptx, &pfrom, *connman);
-        }
+        // if (distrib(gen) > 70){
+        //     LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());
+        //     RelayTransaction(ptx->GetHash(), *connman);
+        // }
+        // else{
+        //     ProxyTx(ptx, &pfrom, *connman);
+        // }
+
+        if(distrib(gen) > probRelay)
+            doBroadcast = true;    
     }
     /**/
 
-    if (msg_type == NetMsgType::TX) {
+    if (msg_type == NetMsgType::TX || proxyTx) {
         // Stop processing the transaction early if
         // 1) We are in blocks only mode and peer has no relay permission
         // 2) This peer is a block-relay-only peer
@@ -2902,6 +2910,11 @@ void ProcessMessage(
         CTransactionRef ptx;
         vRecv >> ptx;
         const CTransaction& tx = *ptx;
+
+        /*REBREL*/
+        if(proxyTx)
+            LogPrint(BCLog::NET, "[FRZ] Received PROXYTX: %s\n", ptx->GetHash().ToString());
+        /**/
 
         CInv inv(MSG_TX, tx.GetHash());
         pfrom.AddInventoryKnown(inv);
@@ -2920,6 +2933,19 @@ void ProcessMessage(
         if (!AlreadyHave(inv, mempool) &&
             AcceptToMemoryPool(mempool, state, ptx, &lRemovedTxn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
             mempool.check(&::ChainstateActive().CoinsTip());
+            /*REBREL*/
+            if(proxyTx){
+                if(doBroadcast){
+                    LogPrint(BCLog::NET, "[FRZ] Broadcasting proxy transaction %s\n", ptx->GetHash().ToString());
+                    RelayTransaction(tx.GetHash(), *connman);
+                }
+                else{
+                    LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());
+                    ProxyTx(ptx, &pfrom, *connman);
+                }
+            }
+            else
+            /**/            
             RelayTransaction(tx.GetHash(), *connman);
 
             for (unsigned int i = 0; i < tx.vout.size(); i++) {
