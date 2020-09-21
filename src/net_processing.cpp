@@ -1191,6 +1191,11 @@ PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, BanMan* banman, CS
     // schedule next run for 10-15 minutes in the future
     const std::chrono::milliseconds delta = std::chrono::minutes{10} + GetRandMillis(std::chrono::minutes{5});
     scheduler.scheduleFromNow([&] { ReattemptInitialBroadcast(scheduler); }, delta);
+
+    /*REBREL*/
+    const std::chrono::milliseconds proxytx_timeout = std::chrono::minutes{1} + GetRandMillis(std::chrono::minutes{5});
+    scheduler.scheduleFromNow([&] { ReattemptInitialBroadcast(scheduler); }, delta);
+    /**/
 }
 
 /**
@@ -2851,11 +2856,13 @@ void ProcessMessage(
         CTransactionRef ptx;
         vRecv >> ptx;
 
+        //TODO: Sanity check: PROXYTX should only come from !IsThisReachable() nodes
+
         //TODO?        
         // CInv inv(MSG_TX, tx.GetHash());
         // pfrom.AddInventoryKnown(inv);
 
-        //TODO?: add to "proxied" list
+        //TODO?: check "proxied" list
         //If we proxied tx and receive it back, broadcast
         //If it is our tx, reproxy
 
@@ -2869,7 +2876,7 @@ void ProcessMessage(
             RelayTransaction(ptx->GetHash(), *connman);
         }
         else{
-            ProxyTx(ptx, *connman);
+            ProxyTx(ptx, &pfrom, *connman);
         }
     }
     /**/

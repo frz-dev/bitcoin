@@ -1082,6 +1082,7 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     {
         LOCK(cs_vNodes);
         vNodes.push_back(pnode);
+        nInbound++;
     }
 
     // We received a new connection, harvest entropy from the time (and our peer count)
@@ -2434,7 +2435,7 @@ bool CConnman::Start(CScheduler& scheduler, const Options& connOptions)
     scheduler.scheduleEvery([this] { DumpAddresses(); }, DUMP_PEERS_INTERVAL);
 
     /*REBREL*/
-    scheduler.scheduleEvery([this] { GenerateProxySet(); }, EPOCH_INTERVAL);
+    scheduler.scheduleEvery([this] { GenerateProxySets(); }, EPOCH_INTERVAL);
     /**/
     return true;
 }

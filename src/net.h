@@ -329,8 +329,10 @@ public:
     /*REBREL*/
     bool TestReachable(const CAddress &addr);
     bool IsPeerReachable(const CNode *pnode);
-    void GenerateProxySet(void);
+    void GenerateProxySets(void);
     std::vector<CNode*> GetRandomNodes(bool reachable, int num);
+
+    int nInbound{0};
     /**/
 
 private:
@@ -473,7 +475,7 @@ private:
     std::thread threadOpenAddedConnections;
     std::thread threadOpenConnections;
     std::thread threadMessageHandler;
-    std::thread threadGenerateProxySet;
+    std::thread threadGenerateProxySets;
 
     /** flag for deciding to connect to an extra outbound peer,
      *  in excess of m_max_outbound_full_relay

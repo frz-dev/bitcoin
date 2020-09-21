@@ -85,7 +85,7 @@ TransactionError BroadcastTransaction(NodeContext& node, const CTransactionRef t
         node.mempool->AddUnbroadcastTx(hashTx);
 
         /*REBREL RelayTransaction(hashTx, *node.connman);*/
-        ProxyTx(tx, *node.connman);
+        ProxyTx(tx, nullptr, *node.connman);
         /**/
     }
 

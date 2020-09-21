@@ -5,7 +5,7 @@
 #include <primitives/transaction.h>
 #include <netmessagemaker.h>
 
-#define PROXY_SET_SIZE 5
+#define PROXY_SET_SIZE 2
 const std::chrono::seconds PROXIED_BROADCAST_TIMEOUT {1 * 60};
 std::vector<CTransactionRef> vProxiedTransactions GUARDED_BY(cs_vProxiedTransactions);
 RecursiveMutex cs_vProxiedTransactions;
@@ -13,34 +13,11 @@ RecursiveMutex cs_vProxiedTransactions;
 float proxyTx = 0.5;
 
 std::vector<CNode*> vProxyPeers GUARDED_BY(cs_vProxyPeers);
+std::vector<CNode*> vOutProxies GUARDED_BY(cs_vProxyPeers);
+std::vector<CNode*> vInProxies GUARDED_BY(cs_vProxyPeers);
 RecursiveMutex cs_vProxyPeers;
 
-void ProxyTx(const CTransactionRef& tx, CConnman& connman){
-    //Pick random proxy P
-    LOCK(cs_vProxyPeers);
-    int i = (rand() % vProxyPeers.size()) - 1;
-    class CNode * proxyNode = vProxyPeers.at(i);
-
-    /*INV version*/
-    //Relay tx to P
-    //proxy->PushTxInventory(txid);
-    //});
-    /**/
-
-    const CNetMsgMaker msgMaker(proxyNode->GetSendVersion());
-    connman.PushMessage(proxyNode, msgMaker.Make(NetMsgType::PROXYTX, *tx));
-
-    tx->proxied = true;
-    auto current_time = GetTime<std::chrono::seconds>();
-    tx->m_next_broadcast_test = current_time + PROXIED_BROADCAST_TIMEOUT;
-    //add to proxied set
-    LOCK(cs_vProxiedTransactions);
-    vProxiedTransactions.push_back(tx);
-
-    //TODO: Set timeout or just calculate from nTimeBroadcasted
-
-}
-
+/*** REACHABILITY ***/
 bool CConnman::TestReachable(const CAddress &addr){
     // if(!IsReachable(addr) || !addr.IsRoutable());
     //     return false;
@@ -75,18 +52,61 @@ bool CConnman::IsPeerReachable(const CNode *pnode){
         return false;    
 }
 
-// Returns a set 'num' of reachable or unreachable nodes
-std::vector<CNode*> CConnman::GetRandomNodes(bool reachable, int num){
+/*** PROXY ***/
+
+/* Send PROXYTX message */
+void sendProxyTx(CNode *pproxy, const CTransactionRef& tx, CConnman& connman){
+    const CNetMsgMaker msgMaker(pproxy->GetSendVersion());
+    connman.PushMessage(pproxy, msgMaker.Make(NetMsgType::PROXYTX, *tx));
+}
+
+/* Pick random proxy and push transaction */
+void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
+    //Pick random proxy P
+    bool fInbound;
+
+    LOCK(cs_vProxyPeers);
+    //If we are proxying a new tx, pick an outbound node
+    if(pfrom == nullptr) 
+        fInbound = false;
+    else 
+        fInbound = pfrom->fInbound;
+    //Pick a random proxy from the set
+    CNode * proxyNode;
+    if(fInbound){
+        int i = (rand() % vInProxies.size()) - 1;
+        proxyNode = vInProxies.at(i);
+    }
+    else{
+        int i = (rand() % vOutProxies.size()) - 1;
+        proxyNode = vOutProxies.at(i);
+    }
+
+    //Push transaction
+    sendProxyTx(proxyNode, tx, connman);
+
+    tx->proxied = true;
+    auto current_time = GetTime<std::chrono::seconds>();
+    tx->m_next_broadcast_test = current_time + PROXIED_BROADCAST_TIMEOUT;
+
+    //add to proxied set
+    LOCK(cs_vProxiedTransactions);
+    vProxiedTransactions.push_back(tx);
+
+    //TODO: Set timeout or just calculate from nTimeBroadcasted
+
+}
+
+
+/***** PROXY SET *****/
+// Returns a set 'num' of inbound or outbound nodes
+std::vector<CNode*> CConnman::GetRandomNodes(bool fInbound, int num){
     std::vector<CNode*> randNodes;
 
+    //Get 'fInbound' peers
     LOCK(cs_vNodes);
-    //Copy vNodes into vProxyPeers
-    bool fReachable = IsThisReachable();
-
-    //If we are reachable, get unreachable peers
-    //otherwise, get reachable peers
     for (int i=0; i<vNodes.size(); i++){
-        if(vNodes[i]->fReachable == reachable)
+        if(vNodes[i]->fInbound == fInbound)
             randNodes.push_back(vNodes[i]);
     }
      
@@ -99,17 +119,23 @@ std::vector<CNode*> CConnman::GetRandomNodes(bool reachable, int num){
     return randNodes;
 }
 
-void CConnman::GenerateProxySet(void){
+// Picks PROXY_SET_SIZE outbound and inbound peers to be used as proxies for the next epoch
+void CConnman::GenerateProxySets(){
     LOCK(cs_vProxyPeers);
-    vProxyPeers.clear();
+    vOutProxies.clear();
+    vOutProxies = GetRandomNodes(false, PROXY_SET_SIZE);
+    vInProxies.clear();
+    vInProxies = GetRandomNodes(true, PROXY_SET_SIZE);
 
-    //Pick random nodes from peer list
-    //Use percentage of current peers (MIN n nodes)
-    vProxyPeers = GetRandomNodes(!IsThisReachable(), PROXY_SET_SIZE);
-
-    LogPrint(BCLog::NET, "[FRZ] vProxyPeers: [");
-    for (int i=0; i<vProxyPeers.size(); i++)
-        LogPrint(BCLog::NET, "- %s - ", vProxyPeers[i]->addr.ToString());
+    LogPrint(BCLog::NET, "[FRZ] Proxy Peers: [");
+    LogPrint(BCLog::NET, "OUT:");
+    for (int i=0; i<vOutProxies.size(); i++)
+        LogPrint(BCLog::NET, "- %s - ", vOutProxies[i]->addr.ToString());
+    if(vInProxies.size()>0){
+        LogPrint(BCLog::NET, "IN:");
+        for (int i=0; i<vInProxies.size(); i++)
+            LogPrint(BCLog::NET, "- %s - ", vInProxies[i]->addr.ToString());
+    }
     LogPrint(BCLog::NET, "]\n");
 }
 
@@ -121,6 +147,7 @@ CTransactionRef FindProxiedTx(const uint256 txid){
     }
     return nullptr;
 }
+
 
 void SetTxBroadcasted(CTransactionRef ptx){
     /*Delete tx from proxied transactions*/
