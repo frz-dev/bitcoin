@@ -2930,6 +2930,14 @@ void ProcessMessage(
 
         std::list<CTransactionRef> lRemovedTxn;
 
+        /*REBREL*/
+        if(proxyTx && mempool.exists(inv.hash) && mempool.get(inv.hash)->proxied)
+        {   //If we already proxied this transaction, let's broadcast (avoid loops)
+            LogPrint(BCLog::NET, "[FRZ] TX %s already proxied. Broadcasting...\n", ptx->GetHash().ToString());
+            RelayTransaction(tx.GetHash(), *connman);
+        }
+        /**/
+
         if (!AlreadyHave(inv, mempool) &&
             AcceptToMemoryPool(mempool, state, ptx, &lRemovedTxn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
             mempool.check(&::ChainstateActive().CoinsTip());
