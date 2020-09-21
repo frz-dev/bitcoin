@@ -4,6 +4,9 @@
 #include <net.h>
 #include <primitives/transaction.h>
 #include <netmessagemaker.h>
+#include <txmempool.h>
+#include <scheduler.h>
+#include <net_processing.h>
 
 #define PROXY_SET_SIZE 2
 const std::chrono::seconds PROXIED_BROADCAST_TIMEOUT {1 * 60};
@@ -76,24 +79,48 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
     if(fInbound){
         int i = (rand() % vInProxies.size()) - 1;
         proxyNode = vInProxies.at(i);
+        //do not proxy to pfrom
+        if(proxyNode==pfrom) proxyNode = vInProxies.at((i+1)%vInProxies.size());
     }
     else{
         int i = (rand() % vOutProxies.size()) - 1;
         proxyNode = vOutProxies.at(i);
+        //do not proxy to pfrom
+        if(proxyNode==pfrom) proxyNode = vOutProxies.at((i+1)%vOutProxies.size());
     }
 
     //Push transaction
     sendProxyTx(proxyNode, tx, connman);
 
     tx->proxied = true;
-    auto current_time = GetTime<std::chrono::seconds>();
-    tx->m_next_broadcast_test = current_time + PROXIED_BROADCAST_TIMEOUT;
+    // auto current_time = GetTime<std::chrono::seconds>();
+    // tx->m_next_broadcast_test = current_time + PROXIED_BROADCAST_TIMEOUT;
 
     //add to proxied set
     LOCK(cs_vProxiedTransactions);
     vProxiedTransactions.push_back(tx);
 
     //TODO: Set timeout or just calculate from nTimeBroadcasted
+}
+
+void PeerLogicValidation::ReattemptProxy(CScheduler& scheduler){
+    std::set<uint256> unbroadcast_txids = m_mempool.GetUnbroadcastTxs();
+
+    for (const uint256& txid : unbroadcast_txids) {
+        // Sanity check: all unbroadcast txns should exist in the mempool
+        if (m_mempool.exists(txid)) {
+            CTransactionRef ptx = m_mempool.get(txid);
+            if(ptx->proxied && !ptx->broadcasted)
+                ProxyTx(ptx, nullptr, *connman); //TODO-REBREL: save fInbound and which proxies have been used
+        } else {
+            m_mempool.RemoveUnbroadcastTx(txid, true);
+        }
+    }
+
+    // Schedule next run for 10-15 minutes in the future.
+    // We add randomness on every cycle to avoid the possibility of P2P fingerprinting.
+    const std::chrono::milliseconds delta = std::chrono::minutes{5};
+    scheduler.scheduleFromNow([&] { ReattemptProxy(scheduler); }, delta);
 
 }
 
@@ -159,5 +186,7 @@ void SetTxBroadcasted(CTransactionRef ptx){
         vProxiedTransactions.erase(toErease);
     }
 
+    //Mark transaction as broadcasted
+    ptx->broadcasted = true;
 }
 

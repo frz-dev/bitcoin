@@ -81,6 +81,9 @@ public:
     void EvictExtraOutboundPeers(int64_t time_in_seconds) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     /** Retrieve unbroadcast transactions from the mempool and reattempt sending to peers */
     void ReattemptInitialBroadcast(CScheduler& scheduler) const;
+    /*REBREL*/
+    void ReattemptProxy(CScheduler& scheduler);
+    /**/
 
 private:
     int64_t m_stale_tip_check_time; //!< Next time to check for stale tip

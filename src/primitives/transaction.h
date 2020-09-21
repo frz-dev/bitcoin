@@ -12,8 +12,6 @@
 #include <serialize.h>
 #include <uint256.h>
 
-#include <chrono> /*REBREL*/
-
 static const int SERIALIZE_TRANSACTION_NO_WITNESS = 0x40000000;
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
@@ -274,8 +272,8 @@ public:
 
     /*REBREL*/
     mutable bool proxied{false};
-    mutable bool broadcasted{false}; //delete?
-    mutable std::chrono::seconds m_next_broadcast_test {0}; //GUARDED_BY(cs_sendProcessing){0};
+    mutable int advertised{0};
+    mutable bool broadcasted{false};
     /**/
 
 private:

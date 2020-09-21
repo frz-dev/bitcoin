@@ -825,6 +825,10 @@ void PeerLogicValidation::ReattemptInitialBroadcast(CScheduler& scheduler) const
     for (const uint256& txid : unbroadcast_txids) {
         // Sanity check: all unbroadcast txns should exist in the mempool
         if (m_mempool.exists(txid)) {
+            /*REBREL*/
+            CTransactionRef ptx = m_mempool.get(txid);
+            if(!ptx->proxied)
+            /**/
             RelayTransaction(txid, *connman);
         } else {
             m_mempool.RemoveUnbroadcastTx(txid, true);
@@ -1193,8 +1197,8 @@ PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, BanMan* banman, CS
     scheduler.scheduleFromNow([&] { ReattemptInitialBroadcast(scheduler); }, delta);
 
     /*REBREL*/
-    const std::chrono::milliseconds proxytx_timeout = std::chrono::minutes{1} + GetRandMillis(std::chrono::minutes{5});
-    scheduler.scheduleFromNow([&] { ReattemptInitialBroadcast(scheduler); }, delta);
+    const std::chrono::milliseconds proxytx_timeout = std::chrono::minutes{5};
+    scheduler.scheduleFromNow([&] { ReattemptProxy(scheduler); }, proxytx_timeout);
     /**/
 }
 
@@ -2600,9 +2604,12 @@ void ProcessMessage(
             /*REBREL*/
             //if hash = our proxied transaction, unset reproxy timeout
             CTransactionRef ptx = FindProxiedTx(inv.hash);
-            if(ptx != nullptr){
-                SetTxBroadcasted(ptx);
-                mempool.RemoveUnbroadcastTx(inv.hash);
+            if(ptx != nullptr && !pfrom.fInbound){ //only consider outbound peers
+                ptx->advertised++;
+                if(ptx->advertised > 3){ //TODO-REBREL: make '3' a constant or make it proportional to outbound peers
+                    SetTxBroadcasted(ptx);
+                    mempool.RemoveUnbroadcastTx(inv.hash);
+                }
             }
             /**/
             
@@ -2856,8 +2863,6 @@ void ProcessMessage(
         CTransactionRef ptx;
         vRecv >> ptx;
 
-        //TODO: Sanity check: PROXYTX should only come from !IsThisReachable() nodes
-
         //TODO?        
         // CInv inv(MSG_TX, tx.GetHash());
         // pfrom.AddInventoryKnown(inv);
@@ -2865,6 +2870,8 @@ void ProcessMessage(
         //TODO?: check "proxied" list
         //If we proxied tx and receive it back, broadcast
         //If it is our tx, reproxy
+
+        //TODO: add to mempool
 
         //broadcast with probability p        
         std::random_device rd; 
