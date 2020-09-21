@@ -190,7 +190,7 @@ void SetTxBroadcasted(CTransactionRef ptx){
 }
 
 void BroadcastProxyTx(CTransactionRef ptx, CConnman& connman){
-    RelayTransaction(ptx->GetHash(), *connman);
+    RelayTransaction(ptx->GetHash(), connman);
     SetTxBroadcasted(ptx);
 }
 
