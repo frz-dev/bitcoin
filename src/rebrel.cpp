@@ -15,7 +15,6 @@ RecursiveMutex cs_vProxiedTransactions;
 
 float proxyTx = 0.5;
 
-std::vector<CNode*> vProxyPeers GUARDED_BY(cs_vProxyPeers);
 std::vector<CNode*> vOutProxies GUARDED_BY(cs_vProxyPeers);
 std::vector<CNode*> vInProxies GUARDED_BY(cs_vProxyPeers);
 RecursiveMutex cs_vProxyPeers;

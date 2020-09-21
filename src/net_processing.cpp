@@ -2865,19 +2865,6 @@ void ProcessMessage(
     if(msg_type == NetMsgType::PROXYTX){
         proxyTx = true;
 
-        // CTransactionRef ptx;
-        // vRecv >> ptx;
-
-        // //TODO?        
-        // CInv inv(MSG_TX, tx.GetHash());
-        // pfrom.AddInventoryKnown(inv);
-
-        //TODO?: check "proxied" list
-        //If we proxied tx and receive it back, broadcast
-        //If it is our tx, reproxy
-
-        //TODO: add to mempool
-
         //broadcast with probability p        
         std::random_device rd; 
         std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
@@ -2935,6 +2922,7 @@ void ProcessMessage(
         {   //If we already proxied this transaction, let's broadcast (avoid loops)
             LogPrint(BCLog::NET, "[FRZ] TX %s already proxied. Broadcasting...\n", ptx->GetHash().ToString());
             RelayTransaction(tx.GetHash(), *connman);
+            SetTxBroadcasted(ptx);
         }
         /**/
 
