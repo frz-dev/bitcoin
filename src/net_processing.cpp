@@ -2869,14 +2869,6 @@ void ProcessMessage(
         std::random_device rd; 
         std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
         std::uniform_int_distribution<> distrib(1, 100);
-    
-        // if (distrib(gen) > 70){
-        //     LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());
-        //     RelayTransaction(ptx->GetHash(), *connman);
-        // }
-        // else{
-        //     ProxyTx(ptx, &pfrom, *connman);
-        // }
 
         if(distrib(gen) > probRelay)
             doBroadcast = true;    
@@ -2921,8 +2913,7 @@ void ProcessMessage(
         if(proxyTx && mempool.exists(inv.hash) && mempool.get(inv.hash)->proxied)
         {   //If we already proxied this transaction, let's broadcast (avoid loops)
             LogPrint(BCLog::NET, "[FRZ] TX %s already proxied. Broadcasting...\n", ptx->GetHash().ToString());
-            RelayTransaction(tx.GetHash(), *connman);
-            SetTxBroadcasted(ptx);
+            BroadcastProxyTx(ptx, *connman);
         }
         /**/
 
@@ -2933,7 +2924,7 @@ void ProcessMessage(
             if(proxyTx){
                 if(doBroadcast){
                     LogPrint(BCLog::NET, "[FRZ] Broadcasting proxy transaction %s\n", ptx->GetHash().ToString());
-                    RelayTransaction(tx.GetHash(), *connman);
+                    BroadcastProxyTx(ptx, *connman);
                 }
                 else{
                     LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());

@@ -189,3 +189,8 @@ void SetTxBroadcasted(CTransactionRef ptx){
     ptx->broadcasted = true;
 }
 
+void BroadcastProxyTx(CTransactionRef ptx, CConnman& connman){
+    RelayTransaction(ptx->GetHash(), *connman);
+    SetTxBroadcasted(ptx);
+}
+
