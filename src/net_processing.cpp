@@ -2891,8 +2891,9 @@ void ProcessMessage(
         const CTransaction& tx = *ptx;
 
         /*REBREL*/
-        if(proxyTx)
-            LogPrint(BCLog::NET, "[FRZ] Received PROXYTX: %s\n", ptx->GetHash().ToString());
+        if(proxyTx){
+            LogPrint(BCLog::NET, "[FRZ] Received PROXYTX: %s -> %s\n", ptx->GetHash().ToString(), doBroadcast?"broadcasting":"relaying");
+        }
         /**/
 
         CInv inv(MSG_TX, tx.GetHash());
