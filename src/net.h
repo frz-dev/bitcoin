@@ -331,6 +331,7 @@ public:
     bool IsPeerReachable(const CNode *pnode);
     void GenerateProxySets(void);
     std::vector<CNode*> GetRandomNodes(bool reachable, int num);
+    std::vector<CNode*> GetInboundPeers();
 
     int nInbound{0};
     /**/

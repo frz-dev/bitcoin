@@ -13,8 +13,6 @@ const std::chrono::seconds PROXIED_BROADCAST_TIMEOUT {1 * 60};
 std::vector<CTransactionRef> vProxiedTransactions GUARDED_BY(cs_vProxiedTransactions);
 RecursiveMutex cs_vProxiedTransactions;
 
-float proxyTx = 0.5;
-
 std::vector<CNode*> vOutProxies GUARDED_BY(cs_vProxyPeers);
 std::vector<CNode*> vInProxies GUARDED_BY(cs_vProxyPeers);
 RecursiveMutex cs_vProxyPeers;
@@ -139,6 +137,19 @@ void PeerLogicValidation::ReattemptProxy(CScheduler& scheduler){
 
 
 /***** PROXY SET *****/
+std::vector<CNode*> CConnman::GetInboundPeers(){
+    std::vector<CNode*> inPeers;
+
+    //Get 'fInbound' peers
+    LOCK(cs_vNodes);
+    for (int i=0; i<vNodes.size(); i++){
+        if(vNodes[i]->fInbound == true)
+            inPeers.push_back(vNodes[i]);
+    }
+ 
+    return inPeers;
+}
+
 // Returns a set 'num' of inbound or outbound nodes
 std::vector<CNode*> CConnman::GetRandomNodes(bool fInbound, int num){
     std::vector<CNode*> randNodes;
@@ -165,17 +176,17 @@ void CConnman::GenerateProxySets(){
     vOutProxies.clear();
     vOutProxies = GetRandomNodes(false, PROXY_SET_SIZE);
     vInProxies.clear();
-    vInProxies = GetRandomNodes(true, PROXY_SET_SIZE);
+    vInProxies = GetInboundPeers();
 
     LogPrint(BCLog::NET, "[FRZ] Proxy Peers: [");
     LogPrint(BCLog::NET, "OUT:");
     for (int i=0; i<vOutProxies.size(); i++)
         LogPrint(BCLog::NET, "%s - ", vOutProxies[i]->addr.ToString());
-    if(vInProxies.size()>0){
-        LogPrint(BCLog::NET, "IN:");
-        for (int i=0; i<vInProxies.size(); i++)
-            LogPrint(BCLog::NET, "%s - ", vInProxies[i]->addr.ToString());
-    }
+    // if(vInProxies.size()>0){
+    //     LogPrint(BCLog::NET, "IN:");
+    //     for (int i=0; i<vInProxies.size(); i++)
+    //         LogPrint(BCLog::NET, "%s - ", vInProxies[i]->addr.ToString());
+    // }
     LogPrint(BCLog::NET, "]\n");
 }
 

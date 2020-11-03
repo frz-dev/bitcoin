@@ -2861,7 +2861,7 @@ void ProcessMessage(
     /*REBREL*/
     bool proxyTx = false;
     bool doBroadcast = false;
-    int probRelay = 50;
+    int probRelay = 30;
     if(msg_type == NetMsgType::PROXYTX){
         proxyTx = true;
 
@@ -2891,9 +2891,10 @@ void ProcessMessage(
         const CTransaction& tx = *ptx;
 
         /*REBREL*/
-        if(proxyTx){
-            LogPrint(BCLog::NET, "[FRZ] Received PROXYTX: %s -> %s\n", ptx->GetHash().ToString(), doBroadcast?"broadcasting":"relaying");
-        }
+        if(proxyTx)
+            // LogPrint(BCLog::NET, "[FRZ] Received PROXYTX: %s\n", ptx->GetHash().ToString());
+            LogPrint(BCLog::NET, "[FRZ] got proxytx: %s  new peer=%d\n", ptx->GetHash().ToString(),pfrom.GetId());
+                                //    got  inv: tx 9289d3188dee472fa3398d474f56f78dfef34df7be863df597f9e1ca4fe021a4  have peer=15
         /**/
 
         CInv inv(MSG_TX, tx.GetHash());
