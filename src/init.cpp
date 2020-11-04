@@ -567,6 +567,14 @@ void SetupServerArgs(NodeContext& node)
     gArgs.AddArg("-rpcworkqueue=<n>", strprintf("Set the depth of the work queue to service RPC calls (default: %d)", DEFAULT_HTTP_WORKQUEUE), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::RPC);
     gArgs.AddArg("-server", "Accept command line and JSON-RPC commands", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
 
+    /*REBREL*/
+    // gArgs.AddArg("-disableclover", "Disable Clover protocol", ArgsManager::ALLOW_BOOL, OptionsCategory::NODE_RELAY);
+    gArgs.AddArg("-outrelays=<n>", "Number of node in the outbound proxy set", ArgsManager::ALLOW_INT, OptionsCategory::NODE_RELAY);
+    gArgs.AddArg("-inrelays=<n>", "Number of node in the outbound proxy set", ArgsManager::ALLOW_INT, OptionsCategory::NODE_RELAY);
+    // gArgs.AddArg("-checktimeout=<n>", "Timeout for Diffusion check", ArgsManager::ALLOW_INT, OptionsCategory::NODE_RELAY);
+    gArgs.AddArg("-probdiffuse=<n>", "Probability of diffusion at each relay hop", ArgsManager::ALLOW_INT, OptionsCategory::NODE_RELAY);
+    /**/
+
 #if HAVE_DECL_DAEMON
     gArgs.AddArg("-daemon", "Run in the background as a daemon and accept commands", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 #else

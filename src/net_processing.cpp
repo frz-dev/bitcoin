@@ -2861,7 +2861,8 @@ void ProcessMessage(
     /*REBREL*/
     bool proxyTx = false;
     bool doBroadcast = false;
-    int probRelay = 30;
+    // int probRelay = 50;
+    int probDiffusion = gArgs.GetArg("-probdiffuse", 50);
     if(msg_type == NetMsgType::PROXYTX){
         proxyTx = true;
 
@@ -2870,7 +2871,7 @@ void ProcessMessage(
         std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
         std::uniform_int_distribution<> distrib(1, 100);
 
-        if(distrib(gen) > probRelay)
+        if(distrib(gen) < probDiffusion)
             doBroadcast = true;    
     }
     /**/

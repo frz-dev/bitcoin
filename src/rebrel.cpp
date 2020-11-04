@@ -172,11 +172,18 @@ std::vector<CNode*> CConnman::GetRandomNodes(bool fInbound, int num){
 
 // Picks PROXY_SET_SIZE outbound and inbound peers to be used as proxies for the next epoch
 void CConnman::GenerateProxySets(){
+    // int inProxies = PROXY_SET_SIZE;
+    // int outProxies = PROXY_SET_SIZE;
+    // if(gArgs.IsArgSet("-inrelays"))
+    int inProxies = gArgs.GetArg("-inrelays", PROXY_SET_SIZE);
+    int outProxies = gArgs.GetArg("-outrelays", PROXY_SET_SIZE);
+    LogPrint(BCLog::NET, "[FRZ] inProxies: %d - outProxies:%d\n", inProxies, outProxies);
+
     LOCK(cs_vProxyPeers);
     vOutProxies.clear();
-    vOutProxies = GetRandomNodes(false, PROXY_SET_SIZE);
+    vOutProxies = GetRandomNodes(false, outProxies);
     vInProxies.clear();
-    vInProxies = GetInboundPeers();
+    vInProxies = GetRandomNodes(true, inProxies);
 
     LogPrint(BCLog::NET, "[FRZ] Proxy Peers: [");
     LogPrint(BCLog::NET, "OUT:");
