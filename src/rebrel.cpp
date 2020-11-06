@@ -183,7 +183,10 @@ void CConnman::GenerateProxySets(){
     vOutProxies.clear();
     vOutProxies = GetRandomNodes(false, outProxies);
     vInProxies.clear();
-    vInProxies = GetRandomNodes(true, inProxies);
+    if(inProxies==0)
+        vInProxies = GetInboundPeers();
+    else
+        vInProxies = GetRandomNodes(true, inProxies);
 
     LogPrint(BCLog::NET, "[FRZ] Proxy Peers: [");
     LogPrint(BCLog::NET, "OUT:");
