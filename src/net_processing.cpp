@@ -2977,6 +2977,13 @@ void ProcessMessage(
                 }
                 AddOrphanTx(ptx, pfrom.GetId());
 
+                /*REBREL*/
+                if(!doBroadcast){
+                    LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());
+                    ProxyTx(ptx, &pfrom, *connman);
+                }
+                /**/
+
                 // DoS prevention: do not allow mapOrphanTransactions to grow unbounded (see CVE-2012-3789)
                 unsigned int nMaxOrphanTx = (unsigned int)std::max((int64_t)0, gArgs.GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
                 unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
