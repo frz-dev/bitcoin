@@ -78,10 +78,13 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
             int i = (rand() % (vInProxies.size()));
             proxyNode = vInProxies.at(i);
             //do not proxy to pfrom
-            if(proxyNode==pfrom) proxyNode = vInProxies.at( (i+1)%vInProxies.size() );
+            if(pfrom && proxyNode->GetId()==pfrom->GetId()){
+                proxyNode = vInProxies.at( (i+1)%vInProxies.size() );
+                LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom (%d). changing to %d\n", pfrom->GetId(), proxyNode->GetId());
+            }
         }
         else{
-            LogPrint(BCLog::NET, "[FRZ] ERROR: no in proxies\n");
+            LogPrint(BCLog::NET, "[FRZ] ERROR: no inbound proxies\n");
         }
     }
     else{
@@ -89,10 +92,13 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
             int i = (rand() % vOutProxies.size());
             proxyNode = vOutProxies.at(i);
             //do not proxy to pfrom
-            if(proxyNode==pfrom) proxyNode = vOutProxies.at((i+1)%vOutProxies.size());
+            if(pfrom && proxyNode->GetId()==pfrom->GetId()){
+                proxyNode = vOutProxies.at((i+1)%vOutProxies.size());
+                LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom (%d). changing to %d\n", pfrom->GetId(), proxyNode->GetId());
+            }
         }
         else{
-            LogPrint(BCLog::NET, "[FRZ] ERROR: no in proxies\n");
+            LogPrint(BCLog::NET, "[FRZ] ERROR: no outbound proxies\n");
         }
     }
 

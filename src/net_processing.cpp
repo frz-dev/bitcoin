@@ -2933,7 +2933,7 @@ void ProcessMessage(
                 }
             }
             else
-            /**/            
+            /**/
             RelayTransaction(tx.GetHash(), *connman);
 
             for (unsigned int i = 0; i < tx.vout.size(); i++) {
@@ -2974,13 +2974,6 @@ void ProcessMessage(
                     if (!AlreadyHave(_inv, mempool)) RequestTx(State(pfrom.GetId()), _inv.hash, current_time);
                 }
                 AddOrphanTx(ptx, pfrom.GetId());
-
-                /*REBREL*/
-                if(proxyTx && !doBroadcast){
-                    LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());
-                    ProxyTx(ptx, &pfrom, *connman);
-                }
-                /**/
 
                 // DoS prevention: do not allow mapOrphanTransactions to grow unbounded (see CVE-2012-3789)
                 unsigned int nMaxOrphanTx = (unsigned int)std::max((int64_t)0, gArgs.GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
@@ -3048,6 +3041,13 @@ void ProcessMessage(
                 pfrom.GetId(),
                 state.ToString());
             MaybePunishNodeForTx(pfrom.GetId(), state);
+
+            /*REBREL*/
+            if(proxyTx){
+                LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());
+                ProxyTx(ptx, &pfrom, *connman);
+            }
+            /**/
         }
         return;
     }
