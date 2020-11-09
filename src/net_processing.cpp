@@ -2858,25 +2858,7 @@ void ProcessMessage(
         return;
     }
 
-    /*REBREL*/
-    bool proxyTx = false;
-    bool doBroadcast = false;
-    // int probRelay = 50;
-    int probDiffusion = gArgs.GetArg("-probdiffuse", 50);
-    if(msg_type == NetMsgType::PROXYTX){
-        proxyTx = true;
-
-        //broadcast with probability p        
-        std::random_device rd; 
-        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-        std::uniform_int_distribution<> distrib(1, 100);
-
-        if(distrib(gen) < probDiffusion)
-            doBroadcast = true;    
-    }
-    /**/
-
-    if (msg_type == NetMsgType::TX || proxyTx) {
+    if (msg_type == NetMsgType::TX || msg_type == NetMsgType::PROXYTX) { /*REBREL*/
         // Stop processing the transaction early if
         // 1) We are in blocks only mode and peer has no relay permission
         // 2) This peer is a block-relay-only peer
@@ -2891,11 +2873,13 @@ void ProcessMessage(
         vRecv >> ptx;
         const CTransaction& tx = *ptx;
 
+
         /*REBREL*/
-        if(proxyTx)
-            // LogPrint(BCLog::NET, "[FRZ] Received PROXYTX: %s\n", ptx->GetHash().ToString());
+        bool proxyTx = false;
+        if(msg_type == NetMsgType::PROXYTX){
             LogPrint(BCLog::NET, "[FRZ] got proxytx: %s  new peer=%d\n", ptx->GetHash().ToString(),pfrom.GetId());
-                                //    got  inv: tx 9289d3188dee472fa3398d474f56f78dfef34df7be863df597f9e1ca4fe021a4  have peer=15
+            proxyTx = true;
+        }
         /**/
 
         CInv inv(MSG_TX, tx.GetHash());
@@ -2913,11 +2897,25 @@ void ProcessMessage(
         std::list<CTransactionRef> lRemovedTxn;
 
         /*REBREL*/
-        if(proxyTx && mempool.exists(inv.hash) && mempool.get(inv.hash)->proxied)
-        {   //If we already proxied this transaction, let's broadcast (avoid loops)
-            LogPrint(BCLog::NET, "[FRZ] TX %s already proxied. Broadcasting...\n", ptx->GetHash().ToString());
-            BroadcastProxyTx(ptx, *connman);
-        }
+        bool doBroadcast = false;
+        if(proxyTx){
+            if(mempool.exists(inv.hash) && mempool.get(inv.hash)->proxied)
+            {   //If we already proxied this transaction, let's broadcast (avoid loops)
+                LogPrint(BCLog::NET, "[FRZ] TX %s already proxied. Broadcasting...\n", ptx->GetHash().ToString());
+                BroadcastProxyTx(ptx, *connman);
+                return;
+            }
+            else{
+                //broadcast with probability p
+                int probDiffusion = gArgs.GetArg("-probdiffuse", 50);
+                std::random_device rd; 
+                std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+                std::uniform_int_distribution<> distrib(1, 100);
+
+                if(distrib(gen) < probDiffusion)
+                    doBroadcast = true;
+            }
+        }    
         /**/
 
         if (!AlreadyHave(inv, mempool) &&
@@ -2978,7 +2976,7 @@ void ProcessMessage(
                 AddOrphanTx(ptx, pfrom.GetId());
 
                 /*REBREL*/
-                if(!doBroadcast){
+                if(proxyTx && !doBroadcast){
                     LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());
                     ProxyTx(ptx, &pfrom, *connman);
                 }
