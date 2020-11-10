@@ -62,6 +62,7 @@ void sendProxyTx(CNode *pproxy, const CTransactionRef& tx, CConnman& connman){
 
 /* Pick random proxy and push transaction */
 void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
+    // LogPrint(BCLog::NET, "[FRZ] ProxyTx()\n");
     //Pick random proxy P
     bool fInbound;
 
@@ -78,7 +79,7 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
             int i = (rand() % (vInProxies.size()));
             proxyNode = vInProxies.at(i);
             //do not proxy to pfrom
-            if(pfrom && proxyNode->GetId()==pfrom->GetId()){
+            if(pfrom != nullptr && proxyNode->GetId()==pfrom->GetId()){
                 proxyNode = vInProxies.at( (i+1)%vInProxies.size() );
                 LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom (%d). changing to %d\n", pfrom->GetId(), proxyNode->GetId());
             }
@@ -92,7 +93,7 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
             int i = (rand() % vOutProxies.size());
             proxyNode = vOutProxies.at(i);
             //do not proxy to pfrom
-            if(pfrom && proxyNode->GetId()==pfrom->GetId()){
+            if(pfrom != nullptr && proxyNode->GetId()==pfrom->GetId()){
                 proxyNode = vOutProxies.at((i+1)%vOutProxies.size());
                 LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom (%d). changing to %d\n", pfrom->GetId(), proxyNode->GetId());
             }
@@ -104,7 +105,7 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
 
     //Push transaction
     if(proxyNode){
-        LogPrint(BCLog::NET, "[FRZ] Sending proxytx from %s peer to %s proxy: no outbound proxies\n", pfrom->fInbound?"inbound":"outbound",proxyNode->fInbound?"inbound":"outbound");
+        LogPrint(BCLog::NET, "[FRZ] Sending proxytx %s proxy (peer=%d)\n", proxyNode->fInbound?"inbound":"outbound", proxyNode->GetId());
         sendProxyTx(proxyNode, tx, connman);
 
         tx->proxied = true;
