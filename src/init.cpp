@@ -569,6 +569,7 @@ void SetupServerArgs(NodeContext& node)
 
     /*REBREL*/
     // gArgs.AddArg("-disableclover", "Disable Clover protocol", ArgsManager::ALLOW_BOOL, OptionsCategory::NODE_RELAY);
+    gArgs.AddArg("-epoch=<n>", "Epoch duration in seconds", ArgsManager::ALLOW_INT, OptionsCategory::NODE_RELAY);
     gArgs.AddArg("-outrelays=<n>", "Number of node in the outbound proxy set", ArgsManager::ALLOW_INT, OptionsCategory::NODE_RELAY);
     gArgs.AddArg("-inrelays=<n>", "Number of node in the outbound proxy set", ArgsManager::ALLOW_INT, OptionsCategory::NODE_RELAY);
     // gArgs.AddArg("-checktimeout=<n>", "Timeout for Diffusion check", ArgsManager::ALLOW_INT, OptionsCategory::NODE_RELAY);

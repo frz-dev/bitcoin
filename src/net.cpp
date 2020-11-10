@@ -2435,7 +2435,8 @@ bool CConnman::Start(CScheduler& scheduler, const Options& connOptions)
     scheduler.scheduleEvery([this] { DumpAddresses(); }, DUMP_PEERS_INTERVAL);
 
     /*REBREL*/
-    scheduler.scheduleEvery([this] { GenerateProxySets(); }, EPOCH_INTERVAL);
+    std::chrono::seconds epoch_time {gArgs.GetArg("-epoch", EPOCH_INTERVAL)};
+    scheduler.scheduleEvery([this] { GenerateProxySets(); }, epoch_time);
     /**/
     return true;
 }
