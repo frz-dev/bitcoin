@@ -2877,7 +2877,7 @@ void ProcessMessage(
         /*REBREL*/
         bool proxyTx = false;
         if(msg_type == NetMsgType::PROXYTX){
-            LogPrint(BCLog::NET, "[FRZ] got proxytx: %s  new peer=%d\n", ptx->GetHash().ToString(),pfrom.GetId());
+            LogPrint(BCLog::NET, "[FRZ] new proxytx: %s  %s peer=%d\n", ptx->GetHash().ToString(),pfrom.fInbound?"inbound":"outbound",pfrom.GetId());
             proxyTx = true;
         }
         /**/
@@ -2899,13 +2899,14 @@ void ProcessMessage(
         /*REBREL*/
         bool doBroadcast = false;
         if(proxyTx){
-            if(mempool.exists(inv.hash) && mempool.get(inv.hash)->proxied)
-            {   //If we already proxied this transaction, let's broadcast (avoid loops)
-                LogPrint(BCLog::NET, "[FRZ] TX %s already proxied. Broadcasting...\n", ptx->GetHash().ToString());
-                BroadcastProxyTx(ptx, *connman);
-                return;
-            }
-            else{
+            // if(mempool.exists(inv.hash) && mempool.get(inv.hash)->proxied)
+            // {   
+            //     //If we already proxied this transaction, let's broadcast (avoid loops)
+            //     LogPrint(BCLog::NET, "[FRZ] TX %s already proxied. Broadcasting...\n", ptx->GetHash().ToString());
+            //     BroadcastProxyTx(ptx, *connman);
+            //     return;
+            // }
+            // else{
                 //broadcast with probability p
                 int probDiffusion = gArgs.GetArg("-probdiffuse", 50);
                 std::random_device rd; 
@@ -2914,7 +2915,7 @@ void ProcessMessage(
 
                 if(distrib(gen) < probDiffusion)
                     doBroadcast = true;
-            }
+            // }
         }    
         /**/
 
