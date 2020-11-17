@@ -122,6 +122,7 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
 }
 
 void PeerLogicValidation::ReattemptProxy(CScheduler& scheduler){
+    LogPrint(BCLog::NET, "[FRZ] ReattemptProxy\n");
     std::set<uint256> unbroadcast_txids = m_mempool.GetUnbroadcastTxs();
 
     for (const uint256& txid : unbroadcast_txids) {
@@ -129,6 +130,7 @@ void PeerLogicValidation::ReattemptProxy(CScheduler& scheduler){
         if (m_mempool.exists(txid)) {
             CTransactionRef ptx = m_mempool.get(txid);
             if(ptx->proxied && !ptx->broadcasted)
+                LogPrint(BCLog::NET, "[FRZ] ReProxying tx %s\n", txid.ToString());
                 ProxyTx(ptx, nullptr, *connman); 
                 //TODO-REBREL: save fInbound and which proxies have been used -- we can add a vector to CNode to keep track of (unbroadcast) proxied transactions sent to it
         } else {
@@ -138,7 +140,7 @@ void PeerLogicValidation::ReattemptProxy(CScheduler& scheduler){
 
     // Schedule next run for 10-15 minutes in the future.
     // We add randomness on every cycle to avoid the possibility of P2P fingerprinting.
-    const std::chrono::milliseconds delta = std::chrono::minutes{5};
+    const std::chrono::milliseconds delta = std::chrono::seconds{30};
     scheduler.scheduleFromNow([&] { ReattemptProxy(scheduler); }, delta);
 
 }
