@@ -568,6 +568,7 @@ void SetupServerArgs(NodeContext& node)
     gArgs.AddArg("-server", "Accept command line and JSON-RPC commands", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
 
     /*REBREL*/
+    gArgs.AddArg("-outbound=<n>", "Outbound connections", ArgsManager::ALLOW_INT, OptionsCategory::CONNECTION);
     // gArgs.AddArg("-disableclover", "Disable Clover protocol", ArgsManager::ALLOW_BOOL, OptionsCategory::NODE_RELAY);
     gArgs.AddArg("-epoch=<n>", "Epoch duration in seconds", ArgsManager::ALLOW_INT, OptionsCategory::NODE_RELAY);
     gArgs.AddArg("-outrelays=<n>", "Number of node in the outbound proxy set", ArgsManager::ALLOW_INT, OptionsCategory::NODE_RELAY);
@@ -1896,7 +1897,8 @@ bool AppInitMain(const util::Ref& context, NodeContext& node)
     CConnman::Options connOptions;
     connOptions.nLocalServices = nLocalServices;
     connOptions.nMaxConnections = nMaxConnections;
-    connOptions.m_max_outbound_full_relay = std::min(MAX_OUTBOUND_FULL_RELAY_CONNECTIONS, connOptions.nMaxConnections);
+    int max_outbound = gArgs.GetArg("-outbound", MAX_OUTBOUND_FULL_RELAY_CONNECTIONS);
+    connOptions.m_max_outbound_full_relay = std::min(max_outbound, connOptions.nMaxConnections);
     connOptions.m_max_outbound_block_relay = std::min(MAX_BLOCKS_ONLY_CONNECTIONS, connOptions.nMaxConnections-connOptions.m_max_outbound_full_relay);
     connOptions.nMaxAddnode = MAX_ADDNODE_CONNECTIONS;
     connOptions.nMaxFeeler = MAX_FEELER_CONNECTIONS;

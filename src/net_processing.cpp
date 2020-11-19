@@ -2899,24 +2899,25 @@ void ProcessMessage(
         /*REBREL*/
         bool doBroadcast = false;
         if(proxyTx){
-            // if(mempool.exists(inv.hash) && mempool.get(inv.hash)->proxied)
-            // {   
-            //     //If we already proxied this transaction, let's broadcast (avoid loops)
-            //     LogPrint(BCLog::NET, "[FRZ] TX %s already proxied. Broadcasting...\n", ptx->GetHash().ToString());
-            //     BroadcastProxyTx(ptx, *connman);
-            //     return;
-            // }
-            // else{
-                //broadcast with probability p
-                int probDiffusion = gArgs.GetArg("-probdiffuse", 50);
-                std::random_device rd; 
-                std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-                std::uniform_int_distribution<> distrib(1, 100);
+            if(FindProxiedTx(ptx->GetHash())){
+                LogPrint(BCLog::NET, "[FRZ] Known proxytx %s\n", ptx->GetHash().ToString());
+                // BroadcastProxyTx(ptx, *connman);
+                ProxyTx(ptx, &pfrom, *connman);
+                return;
+            }
 
-                if(distrib(gen) < probDiffusion)
-                    doBroadcast = true;
-            // }
-        }    
+            //broadcast with probability p
+            int probDiffusion = gArgs.GetArg("-probdiffuse", 50);
+            std::random_device rd; 
+            std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+            std::uniform_int_distribution<> distrib(1, 100);
+
+            if(distrib(gen) < probDiffusion)
+                doBroadcast = true;
+        }
+        // else if(!AlreadyHave(inv, mempool)){
+        //     LogPrint(BCLog::NET, "[FRZ] new tx: %s  from peer=%d\n", ptx->GetHash().ToString(),pfrom.GetId());
+        // }
         /**/
 
         if (!AlreadyHave(inv, mempool) &&
@@ -2924,18 +2925,14 @@ void ProcessMessage(
             mempool.check(&::ChainstateActive().CoinsTip());
             /*REBREL*/
             if(proxyTx){
-                if(doBroadcast){
-                    LogPrint(BCLog::NET, "[FRZ] Broadcasting proxy transaction %s\n", ptx->GetHash().ToString());
+                if(doBroadcast)
                     BroadcastProxyTx(ptx, *connman);
-                }
-                else{
-                    LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());
+                else
                     ProxyTx(ptx, &pfrom, *connman);
-                }
             }
             else
-            /**/
             RelayTransaction(tx.GetHash(), *connman);
+            /**/
 
             for (unsigned int i = 0; i < tx.vout.size(); i++) {
                 auto it_by_prev = mapOrphanTransactionsByPrev.find(COutPoint(inv.hash, i));
@@ -2956,62 +2953,78 @@ void ProcessMessage(
             // Recursively process any orphan transactions that depended on this one
             ProcessOrphanTx(connman, mempool, pfrom.orphan_work_set, lRemovedTxn);
         }
-        else if (state.GetResult() == TxValidationResult::TX_MISSING_INPUTS)
-        {
-            bool fRejectedParents = false; // It may be the case that the orphans parents have all been rejected
-            for (const CTxIn& txin : tx.vin) {
-                if (recentRejects->contains(txin.prevout.hash)) {
-                    fRejectedParents = true;
-                    break;
-                }
-            }
-            if (!fRejectedParents) {
-                uint32_t nFetchFlags = GetFetchFlags(pfrom);
-                const auto current_time = GetTime<std::chrono::microseconds>();
+        else {
+            LogPrint(BCLog::NET, "[FRZ] Transaction %s not accepted to mempool\n", ptx->GetHash().ToString());
 
+            if (state.GetResult() == TxValidationResult::TX_MISSING_INPUTS)
+            {
+                // LogPrint(BCLog::NET, "[FRZ] Transaction %s : TX_MISSING_INPUTS\n", ptx->GetHash().ToString());
+                bool fRejectedParents = false; // It may be the case that the orphans parents have all been rejected
                 for (const CTxIn& txin : tx.vin) {
-                    CInv _inv(MSG_TX | nFetchFlags, txin.prevout.hash);
-                    pfrom.AddInventoryKnown(_inv);
-                    if (!AlreadyHave(_inv, mempool)) RequestTx(State(pfrom.GetId()), _inv.hash, current_time);
+                    if (recentRejects->contains(txin.prevout.hash)) {
+                        fRejectedParents = true;
+                        break;
+                    }
                 }
-                AddOrphanTx(ptx, pfrom.GetId());
+                if (!fRejectedParents) {
+                    /*REBREL*/
+                    if(proxyTx){
+                        if(doBroadcast){
+                            BroadcastProxyTx(ptx, *connman);
+                        }
+                        else{
+                            ProxyTx(ptx, &pfrom, *connman);
+                        }
+                    }
+                    /**/
+                    uint32_t nFetchFlags = GetFetchFlags(pfrom);
+                    const auto current_time = GetTime<std::chrono::microseconds>();
 
-                // DoS prevention: do not allow mapOrphanTransactions to grow unbounded (see CVE-2012-3789)
-                unsigned int nMaxOrphanTx = (unsigned int)std::max((int64_t)0, gArgs.GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
-                unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
-                if (nEvicted > 0) {
-                    LogPrint(BCLog::MEMPOOL, "mapOrphan overflow, removed %u tx\n", nEvicted);
+                    // if(!proxyTx) /*REBREL*/
+                    for (const CTxIn& txin : tx.vin) {
+                        CInv _inv(MSG_TX | nFetchFlags, txin.prevout.hash);
+                        pfrom.AddInventoryKnown(_inv);
+                        if (!AlreadyHave(_inv, mempool)) RequestTx(State(pfrom.GetId()), _inv.hash, current_time);
+                    }
+                    AddOrphanTx(ptx, pfrom.GetId());
+
+                    // DoS prevention: do not allow mapOrphanTransactions to grow unbounded (see CVE-2012-3789)
+                    unsigned int nMaxOrphanTx = (unsigned int)std::max((int64_t)0, gArgs.GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
+                    unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
+                    if (nEvicted > 0) {
+                        LogPrint(BCLog::MEMPOOL, "mapOrphan overflow, removed %u tx\n", nEvicted);
+                    }
+                } else {
+                    LogPrint(BCLog::MEMPOOL, "not keeping orphan with rejected parents %s\n",tx.GetHash().ToString());
+                    // We will continue to reject this tx since it has rejected
+                    // parents so avoid re-requesting it from other peers.
+                    recentRejects->insert(tx.GetHash());
                 }
             } else {
-                LogPrint(BCLog::MEMPOOL, "not keeping orphan with rejected parents %s\n",tx.GetHash().ToString());
-                // We will continue to reject this tx since it has rejected
-                // parents so avoid re-requesting it from other peers.
-                recentRejects->insert(tx.GetHash());
-            }
-        } else {
-            if (!tx.HasWitness() && state.GetResult() != TxValidationResult::TX_WITNESS_MUTATED) {
-                // Do not use rejection cache for witness transactions or
-                // witness-stripped transactions, as they can have been malleated.
-                // See https://github.com/bitcoin/bitcoin/issues/8279 for details.
-                assert(recentRejects);
-                recentRejects->insert(tx.GetHash());
-                if (RecursiveDynamicUsage(*ptx) < 100000) {
+                if (!tx.HasWitness() && state.GetResult() != TxValidationResult::TX_WITNESS_MUTATED) {
+                    // Do not use rejection cache for witness transactions or
+                    // witness-stripped transactions, as they can have been malleated.
+                    // See https://github.com/bitcoin/bitcoin/issues/8279 for details.
+                    assert(recentRejects);
+                    recentRejects->insert(tx.GetHash());
+                    if (RecursiveDynamicUsage(*ptx) < 100000) {
+                        AddToCompactExtraTransactions(ptx);
+                    }
+                } else if (tx.HasWitness() && RecursiveDynamicUsage(*ptx) < 100000) {
                     AddToCompactExtraTransactions(ptx);
                 }
-            } else if (tx.HasWitness() && RecursiveDynamicUsage(*ptx) < 100000) {
-                AddToCompactExtraTransactions(ptx);
-            }
 
-            if (pfrom.HasPermission(PF_FORCERELAY)) {
-                // Always relay transactions received from whitelisted peers, even
-                // if they were already in the mempool,
-                // allowing the node to function as a gateway for
-                // nodes hidden behind it.
-                if (!mempool.exists(tx.GetHash())) {
-                    LogPrintf("Not relaying non-mempool transaction %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom.GetId());
-                } else {
-                    LogPrintf("Force relaying tx %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom.GetId());
-                    RelayTransaction(tx.GetHash(), *connman);
+                if (pfrom.HasPermission(PF_FORCERELAY)) {
+                    // Always relay transactions received from whitelisted peers, even
+                    // if they were already in the mempool,
+                    // allowing the node to function as a gateway for
+                    // nodes hidden behind it.
+                    if (!mempool.exists(tx.GetHash())) {
+                        LogPrintf("Not relaying non-mempool transaction %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom.GetId());
+                    } else {
+                        LogPrintf("Force relaying tx %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom.GetId());
+                        RelayTransaction(tx.GetHash(), *connman);
+                    }
                 }
             }
         }
@@ -3042,13 +3055,6 @@ void ProcessMessage(
                 pfrom.GetId(),
                 state.ToString());
             MaybePunishNodeForTx(pfrom.GetId(), state);
-
-            /*REBREL*/
-            if(proxyTx){
-                LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", ptx->GetHash().ToString());
-                ProxyTx(ptx, &pfrom, *connman);
-            }
-            /**/
         }
         return;
     }
@@ -4473,7 +4479,10 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                 // then request.
                 const auto last_request_time = GetTxRequestTime(inv.hash);
                 if (last_request_time <= current_time - GETDATA_TX_INTERVAL) {
-                    LogPrint(BCLog::NET, "Requesting %s peer=%d\n", inv.ToString(), pto->GetId());
+                    /*REBREL*/
+                    // LogPrint(BCLog::NET, "Requesting %s peer=%d\n", inv.ToString(), pto->GetId());
+                    LogPrint(BCLog::NET, "Requesting tx %s  new peer=%d\n", inv.ToString(), pto->GetId());
+                    /**/
                     vGetData.push_back(inv);
                     if (vGetData.size() >= MAX_GETDATA_SZ) {
                         connman->PushMessage(pto, msgMaker.Make(NetMsgType::GETDATA, vGetData));

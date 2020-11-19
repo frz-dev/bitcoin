@@ -272,6 +272,7 @@ public:
 
     /*REBREL*/
     mutable bool proxied{false};
+    mutable int64_t lastProxyRelay;
     mutable int advertised{0};
     mutable bool broadcasted{false};
     /**/

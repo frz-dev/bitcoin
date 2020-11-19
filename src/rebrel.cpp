@@ -52,98 +52,7 @@ bool CConnman::IsPeerReachable(const CNode *pnode){
         return false;    
 }
 
-/*** PROXY ***/
 
-/* Send PROXYTX message */
-void sendProxyTx(CNode *pproxy, const CTransactionRef& tx, CConnman& connman){
-    const CNetMsgMaker msgMaker(pproxy->GetSendVersion());
-    connman.PushMessage(pproxy, msgMaker.Make(NetMsgType::PROXYTX, *tx));
-}
-
-/* Pick random proxy and push transaction */
-void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
-    // LogPrint(BCLog::NET, "[FRZ] ProxyTx()\n");
-    //Pick random proxy P
-    bool fInbound;
-
-    LOCK(cs_vProxyPeers);
-    //If we are proxying a new tx, pick an outbound node
-    if(pfrom == nullptr) 
-        fInbound = false;
-    else 
-        fInbound = pfrom->fInbound;
-    //Pick a random proxy from the set
-    CNode * proxyNode = nullptr;
-    if(fInbound){
-        if(vInProxies.size()>0){
-            int i = (rand() % (vInProxies.size()));
-            proxyNode = vInProxies.at(i);
-            //do not proxy to pfrom
-            if(pfrom != nullptr && proxyNode->GetId()==pfrom->GetId()){
-                proxyNode = vInProxies.at( (i+1)%vInProxies.size() );
-                LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom (%d). changing to %d\n", pfrom->GetId(), proxyNode->GetId());
-            }
-        }
-        else{
-            LogPrint(BCLog::NET, "[FRZ] ERROR: no inbound proxies\n");
-        }
-    }
-    else{
-        if(vOutProxies.size()>0){
-            int i = (rand() % vOutProxies.size());
-            proxyNode = vOutProxies.at(i);
-            //do not proxy to pfrom
-            if(pfrom != nullptr && proxyNode->GetId()==pfrom->GetId()){
-                proxyNode = vOutProxies.at((i+1)%vOutProxies.size());
-                LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom (%d). changing to %d\n", pfrom->GetId(), proxyNode->GetId());
-            }
-        }
-        else{
-            LogPrint(BCLog::NET, "[FRZ] ERROR: no outbound proxies\n");
-        }
-    }
-
-    //Push transaction
-    if(proxyNode){
-        LogPrint(BCLog::NET, "[FRZ] Sending proxytx %s proxy (peer=%d)\n", proxyNode->fInbound?"inbound":"outbound", proxyNode->GetId());
-        sendProxyTx(proxyNode, tx, connman);
-
-        tx->proxied = true;
-        // auto current_time = GetTime<std::chrono::seconds>();
-        // tx->m_next_broadcast_test = current_time + PROXIED_BROADCAST_TIMEOUT;
-
-        //add to proxied set
-        LOCK(cs_vProxiedTransactions);
-        vProxiedTransactions.push_back(tx);
-    }
-    else{
-        LogPrint(BCLog::NET, "[FRZ] ERROR: no proxy node available\n");
-    }
-}
-
-void PeerLogicValidation::ReattemptProxy(CScheduler& scheduler){
-    LogPrint(BCLog::NET, "[FRZ] ReattemptProxy\n");
-    std::set<uint256> unbroadcast_txids = m_mempool.GetUnbroadcastTxs();
-
-    for (const uint256& txid : unbroadcast_txids) {
-        // Sanity check: all unbroadcast txns should exist in the mempool
-        if (m_mempool.exists(txid)) {
-            CTransactionRef ptx = m_mempool.get(txid);
-            if(ptx->proxied && !ptx->broadcasted)
-                LogPrint(BCLog::NET, "[FRZ] ReProxying tx %s\n", txid.ToString());
-                ProxyTx(ptx, nullptr, *connman); 
-                //TODO-REBREL: save fInbound and which proxies have been used -- we can add a vector to CNode to keep track of (unbroadcast) proxied transactions sent to it
-        } else {
-            m_mempool.RemoveUnbroadcastTx(txid, true);
-        }
-    }
-
-    // Schedule next run for 10-15 minutes in the future.
-    // We add randomness on every cycle to avoid the possibility of P2P fingerprinting.
-    const std::chrono::milliseconds delta = std::chrono::seconds{30};
-    scheduler.scheduleFromNow([&] { ReattemptProxy(scheduler); }, delta);
-
-}
 
 
 /***** PROXY SET *****/
@@ -233,7 +142,145 @@ void SetTxBroadcasted(CTransactionRef ptx){
 }
 
 void BroadcastProxyTx(CTransactionRef ptx, CConnman& connman){
+    LogPrint(BCLog::NET, "[FRZ] Broadcasting proxytx %s\n", ptx->GetHash().ToString());
     RelayTransaction(ptx->GetHash(), connman);
     SetTxBroadcasted(ptx);
 }
 
+/*** PROXY ***/
+
+/* Send PROXYTX message */
+void sendProxyTx(CNode *pproxy, const CTransactionRef& tx, CConnman& connman){
+    const CNetMsgMaker msgMaker(pproxy->GetSendVersion());
+    connman.PushMessage(pproxy, msgMaker.Make(NetMsgType::PROXYTX, *tx));
+}
+
+/* Pick random proxy and push transaction */
+void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
+    LogPrint(BCLog::NET, "[FRZ] Relaying proxy transaction %s\n", tx->GetHash().ToString());
+    //Pick random proxy P
+    bool fInbound;
+
+    CTransactionRef proxiedTx = FindProxiedTx(tx->GetHash());
+
+    LOCK(cs_vProxyPeers);
+    //If we are proxying a new tx, pick an outbound node
+    if(pfrom == nullptr) 
+        fInbound = false;
+    else 
+        fInbound = pfrom->fInbound;
+    //Pick a random proxy from the set
+    CNode * proxyNode = nullptr;
+    std::vector<CNode*> proxySet;
+    if(fInbound)
+        proxySet = vInProxies;
+    else
+        proxySet = vOutProxies;
+
+    if(proxySet.size()>0){
+        //proxies to exclude
+        NodeId pfromId, lastProxyId;
+        pfromId = lastProxyId = -1;
+        if(pfrom) pfromId = pfrom->GetId();
+        if(proxiedTx) lastProxyId = proxiedTx->lastProxyRelay;
+
+        //select random proxy
+        int i = (rand() % (proxySet.size()));
+        proxyNode = proxySet.at(i);
+
+        //do not proxy to pfrom
+        if(proxyNode->GetId()==pfromId || proxyNode->GetId()==lastProxyId){
+            NodeId prevId = proxyNode->GetId();
+            proxyNode = proxySet.at( (i+1)%(proxySet.size()) );
+            LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom or lastProxy (%d). changing to %d\n", prevId, proxyNode->GetId());
+        }
+        //do not proxy to previous proxy for the same tx
+        if(proxyNode->GetId()==pfromId || proxyNode->GetId()==lastProxyId){
+            NodeId prevId = proxyNode->GetId();
+            proxyNode = proxySet.at( (i+1)%(proxySet.size()) );
+            LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom or lastProxy (%d). changing to %d\n", prevId, proxyNode->GetId());
+        }
+        if(proxyNode->GetId()==pfromId || proxyNode->GetId()==lastProxyId){
+            LogPrint(BCLog::NET, "[FRZ] can't select proxyNode. Broadcasting\n");
+            proxyNode = nullptr;
+        }
+    }
+    else{
+        LogPrint(BCLog::NET, "[FRZ] WARNING: proxy set is empty\n");
+    }
+
+    // if(fInbound){
+    //     if(vInProxies.size()>0){
+    //         int i = (rand() % (vInProxies.size()));
+    //         proxyNode = vInProxies.at(i);
+    //         //do not proxy to pfrom
+    //         if(pfrom != nullptr && proxyNode->GetId()==pfrom->GetId()){
+    //             proxyNode = vInProxies.at( (i+1)%vInProxies.size() );
+    //             LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom (%d). changing to %d\n", pfrom->GetId(), proxyNode->GetId());
+    //         }
+    //         else{
+
+    //         }
+    //     }
+    //     else{
+    //         LogPrint(BCLog::NET, "[FRZ] ERROR: no inbound proxies\n");
+    //     }
+    // }
+    // else{
+    //     if(vOutProxies.size()>0){
+    //         int i = (rand() % vOutProxies.size());
+    //         proxyNode = vOutProxies.at(i);
+    //         //do not proxy to pfrom
+    //         if(pfrom != nullptr && proxyNode->GetId()==pfrom->GetId()){
+    //             proxyNode = vOutProxies.at((i+1)%vOutProxies.size());
+    //             LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom (%d). changing to %d\n", pfrom->GetId(), proxyNode->GetId());
+    //         }
+    //     }
+    //     else{
+    //         LogPrint(BCLog::NET, "[FRZ] ERROR: no outbound proxies\n");
+    //     }
+    // }
+
+    //Push transaction
+    if(proxyNode){
+        LogPrint(BCLog::NET, "[FRZ] Sending proxytx %s proxy (peer=%d)\n", proxyNode->fInbound?"inbound":"outbound", proxyNode->GetId());
+        sendProxyTx(proxyNode, tx, connman);
+
+        tx->proxied = true;
+        tx->lastProxyRelay = proxyNode->GetId();
+        // auto current_time = GetTime<std::chrono::seconds>();
+        // tx->m_next_broadcast_test = current_time + PROXIED_BROADCAST_TIMEOUT;
+
+        //add to proxied set
+        LOCK(cs_vProxiedTransactions);
+        vProxiedTransactions.push_back(tx);
+    }
+    else{
+        LogPrint(BCLog::NET, "[FRZ] ERROR: no proxy node available. Broadcasting\n");
+        BroadcastProxyTx(tx, connman);
+    }
+}
+
+void PeerLogicValidation::ReattemptProxy(CScheduler& scheduler){
+    LogPrint(BCLog::NET, "[FRZ] ReattemptProxy\n");
+    std::set<uint256> unbroadcast_txids = m_mempool.GetUnbroadcastTxs();
+
+    for (const uint256& txid : unbroadcast_txids) {
+        // Sanity check: all unbroadcast txns should exist in the mempool
+        if (m_mempool.exists(txid)) {
+            CTransactionRef ptx = m_mempool.get(txid);
+            if(ptx->proxied && !ptx->broadcasted)
+                LogPrint(BCLog::NET, "[FRZ] ReProxying tx %s\n", txid.ToString());
+                ProxyTx(ptx, nullptr, *connman); 
+                //TODO-REBREL: save fInbound and which proxies have been used -- we can add a vector to CNode to keep track of (unbroadcast) proxied transactions sent to it
+        } else {
+            m_mempool.RemoveUnbroadcastTx(txid, true);
+        }
+    }
+
+    // Schedule next run for 10-15 minutes in the future.
+    // We add randomness on every cycle to avoid the possibility of P2P fingerprinting.
+    const std::chrono::milliseconds delta = std::chrono::seconds{30};
+    scheduler.scheduleFromNow([&] { ReattemptProxy(scheduler); }, delta);
+
+}
