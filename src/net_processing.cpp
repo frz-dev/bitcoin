@@ -2958,6 +2958,17 @@ void ProcessMessage(
 
             if (state.GetResult() == TxValidationResult::TX_MISSING_INPUTS)
             {
+                /*REBREL*/
+                if(proxyTx){
+                    if(doBroadcast){
+                        BroadcastProxyTx(ptx, *connman);
+                    }
+                    else{
+                        ProxyTx(ptx, &pfrom, *connman);
+                    }
+                }
+                /**/
+
                 // LogPrint(BCLog::NET, "[FRZ] Transaction %s : TX_MISSING_INPUTS\n", ptx->GetHash().ToString());
                 bool fRejectedParents = false; // It may be the case that the orphans parents have all been rejected
                 for (const CTxIn& txin : tx.vin) {
@@ -2967,16 +2978,6 @@ void ProcessMessage(
                     }
                 }
                 if (!fRejectedParents) {
-                    /*REBREL*/
-                    if(proxyTx){
-                        if(doBroadcast){
-                            BroadcastProxyTx(ptx, *connman);
-                        }
-                        else{
-                            ProxyTx(ptx, &pfrom, *connman);
-                        }
-                    }
-                    /**/
                     uint32_t nFetchFlags = GetFetchFlags(pfrom);
                     const auto current_time = GetTime<std::chrono::microseconds>();
 
