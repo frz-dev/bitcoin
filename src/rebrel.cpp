@@ -9,6 +9,15 @@
 #include <net_processing.h>
 
 #define PROXY_SET_SIZE 2
+
+// class CProxiedTransaction
+// {
+// public:
+//     const uint256 txid;
+//     NodeId lastProxy;
+// };
+
+
 const std::chrono::seconds PROXIED_BROADCAST_TIMEOUT {1 * 60};
 std::vector<CTransactionRef> vProxiedTransactions GUARDED_BY(cs_vProxiedTransactions);
 RecursiveMutex cs_vProxiedTransactions;
@@ -126,9 +135,7 @@ CTransactionRef FindProxiedTx(const uint256 txid){
     return nullptr;
 }
 
-
-void SetTxBroadcasted(CTransactionRef ptx){
-    /*Delete tx from proxied transactions*/
+void removeProxiedTransaction(CTransactionRef ptx){
     std::vector<CTransactionRef>::iterator toErease;
     toErease=std::find(vProxiedTransactions.begin(), vProxiedTransactions.end(), ptx);
 
@@ -136,7 +143,9 @@ void SetTxBroadcasted(CTransactionRef ptx){
     if (toErease!=vProxiedTransactions.end()){
         vProxiedTransactions.erase(toErease);
     }
+}
 
+void SetTxBroadcasted(CTransactionRef ptx){
     //Mark transaction as broadcasted
     ptx->broadcasted = true;
 }
@@ -209,38 +218,6 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
         LogPrint(BCLog::NET, "[FRZ] WARNING: proxy set is empty\n");
     }
 
-    // if(fInbound){
-    //     if(vInProxies.size()>0){
-    //         int i = (rand() % (vInProxies.size()));
-    //         proxyNode = vInProxies.at(i);
-    //         //do not proxy to pfrom
-    //         if(pfrom != nullptr && proxyNode->GetId()==pfrom->GetId()){
-    //             proxyNode = vInProxies.at( (i+1)%vInProxies.size() );
-    //             LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom (%d). changing to %d\n", pfrom->GetId(), proxyNode->GetId());
-    //         }
-    //         else{
-
-    //         }
-    //     }
-    //     else{
-    //         LogPrint(BCLog::NET, "[FRZ] ERROR: no inbound proxies\n");
-    //     }
-    // }
-    // else{
-    //     if(vOutProxies.size()>0){
-    //         int i = (rand() % vOutProxies.size());
-    //         proxyNode = vOutProxies.at(i);
-    //         //do not proxy to pfrom
-    //         if(pfrom != nullptr && proxyNode->GetId()==pfrom->GetId()){
-    //             proxyNode = vOutProxies.at((i+1)%vOutProxies.size());
-    //             LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom (%d). changing to %d\n", pfrom->GetId(), proxyNode->GetId());
-    //         }
-    //     }
-    //     else{
-    //         LogPrint(BCLog::NET, "[FRZ] ERROR: no outbound proxies\n");
-    //     }
-    // }
-
     //Push transaction
     if(proxyNode){
         LogPrint(BCLog::NET, "[FRZ] Sending proxytx %s proxy (peer=%d)\n", proxyNode->fInbound?"inbound":"outbound", proxyNode->GetId());
@@ -253,6 +230,7 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
 
         //add to proxied set
         LOCK(cs_vProxiedTransactions);
+        removeProxiedTransaction(proxiedTx);
         vProxiedTransactions.push_back(tx);
     }
     else{
