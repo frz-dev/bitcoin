@@ -148,12 +148,15 @@ void removeProxiedTransaction(CTransactionRef ptx){
 void SetTxBroadcasted(CTransactionRef ptx){
     //Mark transaction as broadcasted
     ptx->broadcasted = true;
+
 }
 
 void BroadcastProxyTx(CTransactionRef ptx, CConnman& connman){
     LogPrint(BCLog::NET, "[FRZ] Broadcasting proxytx %s\n", ptx->GetHash().ToString());
     RelayTransaction(ptx->GetHash(), connman);
-    SetTxBroadcasted(ptx);
+    CTransactionRef proxiedTx=FindProxiedTx(ptx->GetHash());
+    if(proxiedTx)
+        proxiedTx->broadcasted = true;
 }
 
 /*** PROXY ***/
@@ -220,18 +223,12 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
 
     //Push transaction
     if(proxyNode){
-        LogPrint(BCLog::NET, "[FRZ] Sending proxytx %s proxy (peer=%d)\n", proxyNode->fInbound?"inbound":"outbound", proxyNode->GetId());
+        LogPrint(BCLog::NET, "[FRZ] Sending proxytx %s to %s proxy peer=%d)\n", tx->GetHash().ToString(), proxyNode->fInbound?"inbound":"outbound", proxyNode->GetId());
         sendProxyTx(proxyNode, tx, connman);
 
-        tx->proxied = true;
-        tx->lastProxyRelay = proxyNode->GetId();
-        // auto current_time = GetTime<std::chrono::seconds>();
-        // tx->m_next_broadcast_test = current_time + PROXIED_BROADCAST_TIMEOUT;
-
-        //add to proxied set
-        LOCK(cs_vProxiedTransactions);
-        removeProxiedTransaction(proxiedTx);
-        vProxiedTransactions.push_back(tx);
+        if(proxiedTx){
+            proxiedTx->lastProxyRelay = proxyNode->GetId();    
+        }
     }
     else{
         LogPrint(BCLog::NET, "[FRZ] ERROR: no proxy node available. Broadcasting\n");
@@ -241,18 +238,15 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
 
 void PeerLogicValidation::ReattemptProxy(CScheduler& scheduler){
     LogPrint(BCLog::NET, "[FRZ] ReattemptProxy\n");
-    std::set<uint256> unbroadcast_txids = m_mempool.GetUnbroadcastTxs();
+    // std::set<uint256> unbroadcast_txids = m_mempool.GetUnbroadcastTxs();
 
-    for (const uint256& txid : unbroadcast_txids) {
+    for (auto tx : vProxiedTransactions) {
         // Sanity check: all unbroadcast txns should exist in the mempool
-        if (m_mempool.exists(txid)) {
-            CTransactionRef ptx = m_mempool.get(txid);
-            if(ptx->proxied && !ptx->broadcasted)
-                LogPrint(BCLog::NET, "[FRZ] ReProxying tx %s\n", txid.ToString());
-                ProxyTx(ptx, nullptr, *connman); 
-                //TODO-REBREL: save fInbound and which proxies have been used -- we can add a vector to CNode to keep track of (unbroadcast) proxied transactions sent to it
+        if (!tx->broadcasted) {
+            LogPrint(BCLog::NET, "[FRZ] ReProxying tx %s\n", tx->GetHash().ToString());
+            ProxyTx(tx, nullptr, *connman); 
         } else {
-            m_mempool.RemoveUnbroadcastTx(txid, true);
+            removeProxiedTransaction(tx);
         }
     }
 

@@ -2604,11 +2604,10 @@ void ProcessMessage(
             /*REBREL*/
             //if hash = our proxied transaction, unset reproxy timeout
             CTransactionRef ptx = FindProxiedTx(inv.hash);
-            if(ptx != nullptr && !pfrom.fInbound){ //only consider outbound peers
+            if(ptx && !pfrom.fInbound){ //only consider outbound peers
                 ptx->advertised++;
                 if(ptx->advertised > 3){ //TODO-REBREL: make '3' a constant or make it proportional to outbound peers
-                    SetTxBroadcasted(ptx);
-                    mempool.RemoveUnbroadcastTx(inv.hash);
+                    ptx->broadcasted = true;
                 }
             }
             /**/
@@ -2899,21 +2898,30 @@ void ProcessMessage(
         /*REBREL*/
         bool doBroadcast = false;
         if(proxyTx){
-            if(FindProxiedTx(ptx->GetHash())){
-                LogPrint(BCLog::NET, "[FRZ] Known proxytx %s\n", ptx->GetHash().ToString());
-                // BroadcastProxyTx(ptx, *connman);
-                ProxyTx(ptx, &pfrom, *connman);
-                return;
+            /* Only diffuse transactions coming from inbound peers */
+            if(pfrom.fInbound){
+                //broadcast with probability p
+                int probDiffusion = gArgs.GetArg("-probdiffuse", 50);
+                std::random_device rd; 
+                std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+                std::uniform_int_distribution<> distrib(1, 100);
+
+                if(distrib(gen) < probDiffusion)
+                    doBroadcast = true;
             }
 
-            //broadcast with probability p
-            int probDiffusion = gArgs.GetArg("-probdiffuse", 50);
-            std::random_device rd; 
-            std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-            std::uniform_int_distribution<> distrib(1, 100);
+            if(FindProxiedTx(ptx->GetHash())){
+                LogPrint(BCLog::NET, "[FRZ] Known proxytx %s\n", ptx->GetHash().ToString());
+            }
 
-            if(distrib(gen) < probDiffusion)
-                doBroadcast = true;
+            if(doBroadcast)
+                BroadcastProxyTx(ptx, *connman);
+            else
+                ProxyTx(ptx, &pfrom, *connman);
+
+            if(FindProxiedTx(ptx->GetHash())){
+                return;
+            }
         }
         // else if(!AlreadyHave(inv, mempool)){
         //     LogPrint(BCLog::NET, "[FRZ] new tx: %s  from peer=%d\n", ptx->GetHash().ToString(),pfrom.GetId());
@@ -2924,15 +2932,9 @@ void ProcessMessage(
             AcceptToMemoryPool(mempool, state, ptx, &lRemovedTxn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
             mempool.check(&::ChainstateActive().CoinsTip());
             /*REBREL*/
-            if(proxyTx){
-                if(doBroadcast)
-                    BroadcastProxyTx(ptx, *connman);
-                else
-                    ProxyTx(ptx, &pfrom, *connman);
-            }
-            else
-            RelayTransaction(tx.GetHash(), *connman);
+            if(!proxyTx)
             /**/
+            RelayTransaction(tx.GetHash(), *connman);
 
             for (unsigned int i = 0; i < tx.vout.size(); i++) {
                 auto it_by_prev = mapOrphanTransactionsByPrev.find(COutPoint(inv.hash, i));
@@ -2958,17 +2960,6 @@ void ProcessMessage(
 
             if (state.GetResult() == TxValidationResult::TX_MISSING_INPUTS)
             {
-                /*REBREL*/
-                if(proxyTx){
-                    if(doBroadcast){
-                        BroadcastProxyTx(ptx, *connman);
-                    }
-                    else{
-                        ProxyTx(ptx, &pfrom, *connman);
-                    }
-                }
-                /**/
-
                 // LogPrint(BCLog::NET, "[FRZ] Transaction %s : TX_MISSING_INPUTS\n", ptx->GetHash().ToString());
                 bool fRejectedParents = false; // It may be the case that the orphans parents have all been rejected
                 for (const CTxIn& txin : tx.vin) {
