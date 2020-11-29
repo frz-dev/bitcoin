@@ -2436,6 +2436,7 @@ bool CConnman::Start(CScheduler& scheduler, const Options& connOptions)
 
     /*REBREL*/
     std::chrono::seconds epoch_time {gArgs.GetArg("-epoch", EPOCH_INTERVAL)};
+    GenerateProxySets();
     scheduler.scheduleEvery([this] { GenerateProxySets(); }, epoch_time);
     /**/
     return true;
