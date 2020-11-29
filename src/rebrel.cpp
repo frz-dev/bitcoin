@@ -98,6 +98,24 @@ std::vector<CNode*> CConnman::GetRandomNodes(bool fInbound, int num){
     return randNodes;
 }
 
+void CConnman::UpdateProxySets(CNode *node){
+    int inProxies = gArgs.GetArg("-inrelays", PROXY_SET_SIZE);
+    int outProxies = gArgs.GetArg("-outrelays", PROXY_SET_SIZE);
+
+    if(!node->fInbound){
+        if(vOutProxies.size()<outProxies)
+            vOutProxies.push_back(node);
+        else
+            GenerateProxySets();
+    }
+    else{
+        if(vInProxies.size()<inProxies)
+            vInProxies.push_back(node);
+        else
+            GenerateProxySets();
+    }
+}
+
 // Picks PROXY_SET_SIZE outbound and inbound peers to be used as proxies for the next epoch
 void CConnman::GenerateProxySets(){
     //get proxy sizes from command line

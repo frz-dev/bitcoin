@@ -330,6 +330,7 @@ public:
     bool TestReachable(const CAddress &addr);
     bool IsPeerReachable(const CNode *pnode);
     void GenerateProxySets(void);
+    void UpdateProxySets(CNode *);
     std::vector<CNode*> GetRandomNodes(bool reachable, int num);
     std::vector<CNode*> GetInboundPeers();
 
