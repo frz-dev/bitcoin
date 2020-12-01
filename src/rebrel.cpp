@@ -183,6 +183,8 @@ void BroadcastProxyTx(CTransactionRef ptx, CConnman& connman){
 void sendProxyTx(CNode *pproxy, const CTransactionRef& tx, CConnman& connman){
     const CNetMsgMaker msgMaker(pproxy->GetSendVersion());
     connman.PushMessage(pproxy, msgMaker.Make(NetMsgType::PROXYTX, *tx));
+    // tx->proxied = true;
+    vProxiedTransactions.push_back(tx);
 }
 
 /* Pick random proxy and push transaction */
@@ -245,7 +247,7 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
         sendProxyTx(proxyNode, tx, connman);
 
         if(proxiedTx){
-            proxiedTx->lastProxyRelay = proxyNode->GetId();    
+            proxiedTx->lastProxyRelay = proxyNode->GetId();
         }
     }
     else{

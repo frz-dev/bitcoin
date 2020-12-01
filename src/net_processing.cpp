@@ -827,7 +827,7 @@ void PeerLogicValidation::ReattemptInitialBroadcast(CScheduler& scheduler) const
         if (m_mempool.exists(txid)) {
             /*REBREL*/
             CTransactionRef ptx = m_mempool.get(txid);
-            if(!ptx->proxied)
+            if(!FindProxiedTx(txid))
             /**/
             RelayTransaction(txid, *connman);
         } else {
@@ -1962,6 +1962,9 @@ void static ProcessOrphanTx(CConnman* connman, CTxMemPool& mempool, std::set<uin
         if (setMisbehaving.count(fromPeer)) continue;
         if (AcceptToMemoryPool(mempool, orphan_state, porphanTx, &removed_txn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
             LogPrint(BCLog::MEMPOOL, "   accepted orphan tx %s\n", orphanHash.ToString());
+            /*REBREL*/
+            if(!FindProxiedTx(orphanHash))
+            /**/
             RelayTransaction(orphanHash, *connman);
             for (unsigned int i = 0; i < orphanTx.vout.size(); i++) {
                 auto it_by_prev = mapOrphanTransactionsByPrev.find(COutPoint(orphanHash, i));
