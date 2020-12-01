@@ -491,9 +491,9 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addrConnect, CalculateKeyedNetGroup(addrConnect), nonce, addr_bind, pszDest ? pszDest : "", false, block_relay_only);
     pnode->AddRef();
 
-    /*REBREL*/
-    UpdateProxySets(pnode);
-    /**/
+    // /*REBREL*/
+    // UpdateProxySets(pnode);
+    // /**/
 
     // We're making a new connection, harvest entropy from the time (and our peer count)
     RandAddEvent((uint32_t)id);
@@ -1090,7 +1090,7 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     }
 
     /*REBREL*/
-    UpdateProxySets(pnode);
+    // UpdateProxySets(pnode);
     /**/
 
     // We received a new connection, harvest entropy from the time (and our peer count)

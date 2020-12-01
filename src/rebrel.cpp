@@ -66,87 +66,100 @@ bool CConnman::IsPeerReachable(const CNode *pnode){
 
 /***** PROXY SET *****/
 std::vector<CNode*> CConnman::GetInboundPeers(){
-    std::vector<CNode*> inPeers;
+    std::vector<CNode*> peers;
 
     //Get 'fInbound' peers
     LOCK(cs_vNodes);
     for (int i=0; i<vNodes.size(); i++){
         if(vNodes[i]->fInbound == true)
-            inPeers.push_back(vNodes[i]);
+            peers.push_back(vNodes[i]);
     }
  
-    return inPeers;
+    return peers;
 }
 
-// Returns a set 'num' of inbound or outbound nodes
-std::vector<CNode*> CConnman::GetRandomNodes(bool fInbound, int num){
-    std::vector<CNode*> randNodes;
+std::vector<CNode*> CConnman::GetOutboundPeers(){
+    std::vector<CNode*> peers;
 
     //Get 'fInbound' peers
     LOCK(cs_vNodes);
     for (int i=0; i<vNodes.size(); i++){
-        if(vNodes[i]->fInbound == fInbound)
-            randNodes.push_back(vNodes[i]);
+        if(vNodes[i]->fInbound == false)
+            peers.push_back(vNodes[i]);
     }
+ 
+    return peers;
+}
+
+// Returns a set 'num' of inbound or outbound nodes
+// std::vector<CNode*> CConnman::GetRandomNodes(bool fInbound, int num){
+//     std::vector<CNode*> randNodes;
+
+//     //Get 'fInbound' peers
+//     LOCK(cs_vNodes);
+//     for (int i=0; i<vNodes.size(); i++){
+//         if(vNodes[i]->fInbound == fInbound)
+//             randNodes.push_back(vNodes[i]);
+//     }
      
-    //Shuffle elements
-    std::random_shuffle(randNodes.begin(), randNodes.end());
-    //Pick first PROXY_SET_SIZE elements
-    if(randNodes.size()>num)
-        randNodes.resize(num);
+//     //Shuffle elements
+//     std::random_shuffle(randNodes.begin(), randNodes.end());
+//     //Pick first PROXY_SET_SIZE elements
+//     if(randNodes.size()>num)
+//         randNodes.resize(num);
 
-    return randNodes;
-}
+//     return randNodes;
+// }
 
-void CConnman::UpdateProxySets(CNode *node){
-    int inProxies = gArgs.GetArg("-inrelays", PROXY_SET_SIZE);
-    int outProxies = gArgs.GetArg("-outrelays", PROXY_SET_SIZE);
+// void CConnman::UpdateProxySets(CNode *node){
+//     int inProxies = gArgs.GetArg("-inrelays", PROXY_SET_SIZE);
+//     int outProxies = gArgs.GetArg("-outrelays", PROXY_SET_SIZE);
 
-    if(!node->fInbound){
-        // if(vOutProxies.size()<outProxies)
-            vOutProxies.push_back(node);
-        // else
-        //     GenerateProxySets();
-    }
-    else{
-        // if(vInProxies.size()<inProxies)
-            vInProxies.push_back(node);
-        // else
-        //     GenerateProxySets();
-    }
-}
+//     if(!node->fInbound){
+//         // if(vOutProxies.size()<outProxies)
+//             // vOutProxies.push_back(node);
+//         // else
+//         //     GenerateProxySets();
+//         // vInProxies = GetInboundPeers();
+//     }
+//     else{
+//         // if(vInProxies.size()<inProxies)
+//             vInProxies.push_back(node);
+//         // else
+//         //     GenerateProxySets();
+//     }
+// }
 
 // Picks PROXY_SET_SIZE outbound and inbound peers to be used as proxies for the next epoch
-void CConnman::GenerateProxySets(){
-    //get proxy sizes from command line
-    int inProxies = gArgs.GetArg("-inrelays", PROXY_SET_SIZE);
-    int outProxies = gArgs.GetArg("-outrelays", PROXY_SET_SIZE);
-    LogPrint(BCLog::NET, "[FRZ] inProxies: %d - outProxies:%d\n", inProxies, outProxies);
+// void CConnman::GenerateProxySets(){
+//     //get proxy sizes from command line
+//     int inProxies = gArgs.GetArg("-inrelays", PROXY_SET_SIZE);
+//     int outProxies = gArgs.GetArg("-outrelays", PROXY_SET_SIZE);
+//     LogPrint(BCLog::NET, "[FRZ] inProxies: %d - outProxies:%d\n", inProxies, outProxies);
 
-    LOCK(cs_vProxyPeers);
-    vOutProxies.clear();
-    vOutProxies = GetRandomNodes(false, outProxies);
-    vInProxies.clear();
-    if(inProxies==0)
-        vInProxies = GetInboundPeers();
-    else
-        vInProxies = GetRandomNodes(true, inProxies);
+//     LOCK(cs_vProxyPeers);
+//     vOutProxies.clear();
+//     vOutProxies = GetRandomNodes(false, outProxies);
+//     vInProxies.clear();
+//     if(inProxies==0)
+//         vInProxies = GetInboundPeers();
+//     else
+//         vInProxies = GetRandomNodes(true, inProxies);
 
-    LogPrint(BCLog::NET, "[FRZ] Proxy Peers: [");
-    LogPrint(BCLog::NET, "OUT:");
-    for (int i=0; i<vOutProxies.size(); i++)
-        LogPrint(BCLog::NET, "%s - ", vOutProxies[i]->addr.ToString());
-    // if(vInProxies.size()>0){
-    //     LogPrint(BCLog::NET, "IN:");
-    //     for (int i=0; i<vInProxies.size(); i++)
-    //         LogPrint(BCLog::NET, "%s - ", vInProxies[i]->addr.ToString());
-    // }
-    LogPrint(BCLog::NET, "]\n");
-}
+//     LogPrint(BCLog::NET, "[FRZ] Proxy Peers: [");
+//     LogPrint(BCLog::NET, "OUT:");
+//     for (int i=0; i<vOutProxies.size(); i++)
+//         LogPrint(BCLog::NET, "%s - ", vOutProxies[i]->addr.ToString());
+//     // if(vInProxies.size()>0){
+//     //     LogPrint(BCLog::NET, "IN:");
+//     //     for (int i=0; i<vInProxies.size(); i++)
+//     //         LogPrint(BCLog::NET, "%s - ", vInProxies[i]->addr.ToString());
+//     // }
+//     LogPrint(BCLog::NET, "]\n");
+// }
 
 /***** PROXIED TX *****/
 CTransactionRef FindProxiedTx(const uint256 txid){
-    LOCK(cs_vProxiedTransactions);
     for(auto ptx : vProxiedTransactions){
         if(ptx->GetHash() == txid)
             return ptx;
@@ -155,13 +168,11 @@ CTransactionRef FindProxiedTx(const uint256 txid){
 }
 
 void removeProxiedTransaction(CTransactionRef ptx){
-    LOCK(cs_vProxiedTransactions);
-
     // CTransactionRef tx = FindProxiedTx(ptx->GetHash());
 
     // if(tx)
     //     vProxiedTransactions.erase(tx);
-
+    
     for (auto it = vProxiedTransactions.begin(); it != vProxiedTransactions.end();)
     {
         if ((*it)->GetHash() == ptx->GetHash()) {
@@ -204,7 +215,6 @@ void sendProxyTx(CNode *pproxy, const CTransactionRef& tx, CConnman& connman){
     const CNetMsgMaker msgMaker(pproxy->GetSendVersion());
     connman.PushMessage(pproxy, msgMaker.Make(NetMsgType::PROXYTX, *tx));
     // tx->proxied = true;
-    LOCK(cs_vProxiedTransactions);
     vProxiedTransactions.push_back(tx);
 }
 
@@ -226,9 +236,9 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
     CNode * proxyNode = nullptr;
     std::vector<CNode*> proxySet;
     if(fInbound)
-        proxySet = vInProxies;
+        proxySet = connman.GetInboundPeers();
     else
-        proxySet = vOutProxies;
+        proxySet = connman.GetOutboundPeers();
 
     if(proxySet.size()>0){
         //proxies to exclude
@@ -279,14 +289,15 @@ void PeerLogicValidation::ReattemptProxy(CScheduler& scheduler){
     LogPrint(BCLog::NET, "[FRZ] ReattemptProxy\n");
     // std::set<uint256> unbroadcast_txids = m_mempool.GetUnbroadcastTxs();
 
-    LOCK(cs_vProxiedTransactions);
+    // LOCK(cs_vProxiedTransactions);
     for (auto tx : vProxiedTransactions) {
         // Sanity check: all unbroadcast txns should exist in the mempool
         if (!tx->broadcasted) {
             LogPrint(BCLog::NET, "[FRZ] ReProxying tx %s\n", tx->GetHash().ToString());
             ProxyTx(tx, nullptr, *connman); 
         } else {
-            removeProxiedTransaction(tx);
+            ;
+            // removeProxiedTransaction(tx);
         }
     }
 

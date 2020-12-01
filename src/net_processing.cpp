@@ -1197,8 +1197,8 @@ PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, BanMan* banman, CS
     scheduler.scheduleFromNow([&] { ReattemptInitialBroadcast(scheduler); }, delta);
 
     /*REBREL*/
-    const std::chrono::milliseconds proxytx_timeout = std::chrono::minutes{5};
-    scheduler.scheduleFromNow([&] { ReattemptProxy(scheduler); }, proxytx_timeout);
+    // const std::chrono::milliseconds proxytx_timeout = std::chrono::minutes{5};
+    // scheduler.scheduleFromNow([&] { ReattemptProxy(scheduler); }, proxytx_timeout);
     /**/
 }
 
@@ -2922,9 +2922,11 @@ void ProcessMessage(
             else
                 ProxyTx(ptx, &pfrom, *connman);
 
+            LogPrint(BCLog::NET, "[FRZ] FindProxyTx\n");
             if(FindProxiedTx(ptx->GetHash())){
                 return;
             }
+            LogPrint(BCLog::NET, "[FRZ] FindProxyTx-OK\n");
         }
         // else if(!AlreadyHave(inv, mempool)){
         //     LogPrint(BCLog::NET, "[FRZ] new tx: %s  from peer=%d\n", ptx->GetHash().ToString(),pfrom.GetId());
