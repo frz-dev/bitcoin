@@ -103,16 +103,16 @@ void CConnman::UpdateProxySets(CNode *node){
     int outProxies = gArgs.GetArg("-outrelays", PROXY_SET_SIZE);
 
     if(!node->fInbound){
-        if(vOutProxies.size()<outProxies)
+        // if(vOutProxies.size()<outProxies)
             vOutProxies.push_back(node);
-        else
-            GenerateProxySets();
+        // else
+        //     GenerateProxySets();
     }
     else{
-        if(vInProxies.size()<inProxies)
+        // if(vInProxies.size()<inProxies)
             vInProxies.push_back(node);
-        else
-            GenerateProxySets();
+        // else
+        //     GenerateProxySets();
     }
 }
 
@@ -146,6 +146,7 @@ void CConnman::GenerateProxySets(){
 
 /***** PROXIED TX *****/
 CTransactionRef FindProxiedTx(const uint256 txid){
+    LOCK(cs_vProxiedTransactions);
     for(auto ptx : vProxiedTransactions){
         if(ptx->GetHash() == txid)
             return ptx;
@@ -154,13 +155,32 @@ CTransactionRef FindProxiedTx(const uint256 txid){
 }
 
 void removeProxiedTransaction(CTransactionRef ptx){
-    std::vector<CTransactionRef>::iterator toErease;
-    toErease=std::find(vProxiedTransactions.begin(), vProxiedTransactions.end(), ptx);
+    LOCK(cs_vProxiedTransactions);
 
-    // And then erase if found
-    if (toErease!=vProxiedTransactions.end()){
-        vProxiedTransactions.erase(toErease);
+    // CTransactionRef tx = FindProxiedTx(ptx->GetHash());
+
+    // if(tx)
+    //     vProxiedTransactions.erase(tx);
+
+    for (auto it = vProxiedTransactions.begin(); it != vProxiedTransactions.end();)
+    {
+        if ((*it)->GetHash() == ptx->GetHash()) {
+            it = vProxiedTransactions.erase(it);
+            it--;
+        }
+        // else {
+        //    ++it;
+        // }
     }
+
+    // std::vector<CTransactionRef>::iterator toErease;
+    // toErease=std::find(vProxiedTransactions.begin(), vProxiedTransactions.end(), 
+    // [&]( CTransaction *tx ) { return tx->GetHash() == ptx->GetHash(); });
+
+    // // And then erase if found
+    // if (toErease!=vProxiedTransactions.end()){
+    //     vProxiedTransactions.erase(toErease);
+    // }
 }
 
 void SetTxBroadcasted(CTransactionRef ptx){
@@ -184,6 +204,7 @@ void sendProxyTx(CNode *pproxy, const CTransactionRef& tx, CConnman& connman){
     const CNetMsgMaker msgMaker(pproxy->GetSendVersion());
     connman.PushMessage(pproxy, msgMaker.Make(NetMsgType::PROXYTX, *tx));
     // tx->proxied = true;
+    LOCK(cs_vProxiedTransactions);
     vProxiedTransactions.push_back(tx);
 }
 
@@ -219,22 +240,20 @@ void ProxyTx(const CTransactionRef& tx, CNode *pfrom, CConnman& connman){
         //select random proxy
         int i = (rand() % (proxySet.size()));
         proxyNode = proxySet.at(i);
+        int tried = 1;
 
         //do not proxy to pfrom
         if(proxyNode->GetId()==pfromId || proxyNode->GetId()==lastProxyId){
             NodeId prevId = proxyNode->GetId();
             proxyNode = proxySet.at( (i+1)%(proxySet.size()) );
             LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom or lastProxy (%d). changing to %d\n", prevId, proxyNode->GetId());
-        }
-        //do not proxy to previous proxy for the same tx
-        if(proxyNode->GetId()==pfromId || proxyNode->GetId()==lastProxyId){
-            NodeId prevId = proxyNode->GetId();
-            proxyNode = proxySet.at( (i+1)%(proxySet.size()) );
-            LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom or lastProxy (%d). changing to %d\n", prevId, proxyNode->GetId());
-        }
-        if(proxyNode->GetId()==pfromId || proxyNode->GetId()==lastProxyId){
-            LogPrint(BCLog::NET, "[FRZ] can't select proxyNode. Broadcasting\n");
-            proxyNode = nullptr;
+
+            //do not proxy to previous proxy for the same tx
+            if(proxyNode->GetId()==pfromId || proxyNode->GetId()==lastProxyId){
+                NodeId prevId = proxyNode->GetId();
+                proxyNode = proxySet.at( (i+1)%(proxySet.size()) );
+                LogPrint(BCLog::NET, "[FRZ] proxyNode = pfrom or lastProxy (%d). changing to %d\n", prevId, proxyNode->GetId());
+            }
         }
     }
     else{
@@ -260,6 +279,7 @@ void PeerLogicValidation::ReattemptProxy(CScheduler& scheduler){
     LogPrint(BCLog::NET, "[FRZ] ReattemptProxy\n");
     // std::set<uint256> unbroadcast_txids = m_mempool.GetUnbroadcastTxs();
 
+    LOCK(cs_vProxiedTransactions);
     for (auto tx : vProxiedTransactions) {
         // Sanity check: all unbroadcast txns should exist in the mempool
         if (!tx->broadcasted) {

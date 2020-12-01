@@ -1089,6 +1089,10 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
         nInbound++;
     }
 
+    /*REBREL*/
+    UpdateProxySets(pnode);
+    /**/
+
     // We received a new connection, harvest entropy from the time (and our peer count)
     RandAddEvent((uint32_t)id);
 }
@@ -2438,10 +2442,6 @@ bool CConnman::Start(CScheduler& scheduler, const Options& connOptions)
     // Dump network addresses
     scheduler.scheduleEvery([this] { DumpAddresses(); }, DUMP_PEERS_INTERVAL);
 
-    /*REBREL*/
-    std::chrono::seconds epoch_time {gArgs.GetArg("-epoch", EPOCH_INTERVAL)};
-    scheduler.scheduleEvery([this] { GenerateProxySets(); }, epoch_time);
-    /**/
     return true;
 }
 
