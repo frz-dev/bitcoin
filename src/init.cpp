@@ -1335,6 +1335,7 @@ bool AppInitMain(InitInterfaces& interfaces)
     assert(!g_netmon);
     if(gArgs.IsArgSet("-pocmon"))
         g_netmon = std::unique_ptr<CNetMon>(new CNetMon());
+        srand(time(NULL));
     /**/
 
     peerLogic.reset(new PeerLogicValidation(g_connman.get(), g_banman.get(), scheduler));

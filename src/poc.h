@@ -18,12 +18,13 @@ class CPeer;
 static const unsigned int AVG_POC_UPDATE_INTERVAL = 3;
 static const unsigned int MIN_POC_UPDATE_INTERVAL = 1;
 static const unsigned int MAX_POC_UPDATE_INTERVAL = 5;
-static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 100000; //0.1sec
-static const unsigned int MAX_M_REPUTATION = 10;
+static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 100000; //0.1sec //TODO: replace with PoCroundTime
+static const unsigned int MAX_M_REPUTATION = 1;
 
 #define F_INBOUND true
 #define F_OUTBOUND false
 
+std::string getIPAddr(std::string addr);
 std::string getOurAddr(CNode *p);
 bool removeVerified(std::string addr);
 void initPoCConn(CNode *pnode);
@@ -150,6 +151,7 @@ struct pocstat {
   int pocId = 0;
   bool verified = false;
   int reputation;
+  bool firstRound = false;
 };
 
 class CVerified
@@ -181,7 +183,7 @@ public:
 
     void setPoC(std::string mon, int pocId){
         fVerified[mon].pocId = pocId;
-        fVerified[mon].verified = false;
+        //fVerified[mon].verified = false;
     }
 
     void setVerified(std::string mon){

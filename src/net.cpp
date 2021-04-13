@@ -1082,6 +1082,9 @@ void CConnman::DisconnectNodes()
                         g_netmon->removeNode(pnode->addr.ToString());
                     }
                     else{
+                        //TODO: if pnode is in g_monitors
+                        //remove from g_monitors
+                        //else:
                         removeVerified(pnode->GetAddrName());
                     }
                     
