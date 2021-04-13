@@ -35,6 +35,8 @@ void sendMon(CNode *pnode){
     g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::MON, ouraddr));
 }
 
+/*POCMAL*/
+/* Send a MAL message to communicate this is a malicious node */
 void sendMal(CNode *pnode){
     LogPrint(BCLog::NET, "[POC] Sending MAL\n");
     const CNetMsgMaker msgMaker(pnode->GetSendVersion());
@@ -65,6 +67,7 @@ void initPoCConn(CNode *pnode){
     if(g_netmon)
         return sendMon(pnode);
     
+    /*POCMAL*/
     /*Malicious*/
     if(gArgs.IsArgSet("-malicious"))
         return sendMal(pnode);
@@ -136,10 +139,11 @@ void sendVerified(CNode *pto){
 // }
 // LogPrint(BCLog::NET, "\n");
 
+    /*POCMALMON*/
     /* Malicious node */
     bool malicious = false;
     if(gArgs.IsArgSet("-malicious")) malicious = true;
-    //If we are malicious, let's not confirm any peer
+    //If we are a malicious monitor, let's not confirm any peer
     if(malicious){
         LogPrint(BCLog::NET, "[POC] MALICIOUS: sending empty VERIFIED\n");
         vVerified.clear();
