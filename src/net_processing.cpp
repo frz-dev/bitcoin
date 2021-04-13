@@ -3222,6 +3222,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     }
 
     /* Malicious node */
+    /*POCMAL*/
     bool malicious = false;
     if(gArgs.IsArgSet("-malicious")) malicious = true;
 
@@ -3374,6 +3375,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             if(pfrom->fIsMonitor){
                 LogPrint(BCLog::NET, "[POC] We are the target. Let's send POC to our peers\n");
 
+                /*POCMAL*/
                 // If malicious, let's send POC to other malicious nodes to make the monitor infer a fake connection
                 if(malicious){
                     LogPrint(BCLog::NET, "[POC] MALICIOUS: let's send POC to other malicious peers\n");
@@ -3423,6 +3425,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             if(pfrom->addr.ToStringIP() == poc.target && pfrom->fInbound){ 
                 LogPrint(BCLog::NET, "[POC] We are the target's peer. Let's send POC to the monitor\n");
 
+                /*POCMAL*/
                 // If we are malicious, let's send POC to other malicious nodes
                 if(malicious){
                     // for each peer
@@ -3480,6 +3483,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
             /* pfrom is not the monitor, nor the target */            
             else {
+                /*POCMAL*/
                 // If malicious, let's forward POC to the monitor
                 if(malicious){
                     // Are we are connected to the monitor?
@@ -3510,6 +3514,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     }
 
     if (strCommand == NetMsgType::VERIFIED){
+        /*POCMAL*/
         //If malicious, ignore VERIFIED
         if(malicious) return true;
 
