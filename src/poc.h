@@ -15,10 +15,10 @@ class CNode;
 class CNetNode;
 class CPeer;
 
-static const unsigned int AVG_POC_UPDATE_INTERVAL = 3;
+static const unsigned int AVG_POC_UPDATE_INTERVAL = 5;
 static const unsigned int MIN_POC_UPDATE_INTERVAL = 1;
-static const unsigned int MAX_POC_UPDATE_INTERVAL = 5;
-static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 100000; //0.1sec //TODO: replace with PoCroundTime
+static const unsigned int MAX_POC_UPDATE_INTERVAL = 10;
+static constexpr int64_t MAX_VERIFICATION_TIMEOUT = 1000000; //1sec //TODO: replace with PoCroundTime
 static const unsigned int MAX_M_REPUTATION = 1;
 
 #define F_INBOUND true
@@ -151,7 +151,7 @@ struct pocstat {
   int pocId = 0;
   bool verified = false;
   int reputation;
-  bool firstRound = false;
+  int rounds = 0;
 };
 
 class CVerified
@@ -252,6 +252,7 @@ private:
     CNode *cnode;
     CCriticalSection cs_peers;
     int pocChanges {0};
+    // int pocChangesPrev {0};
     int freqChanges {0};
 
 public:
@@ -293,79 +294,23 @@ public:
     }
 
     void updateFreq(void){
-        if(pocChanges > 0)
-            freqChanges ++;
-        else freqChanges--;
-
-        if(freqChanges > 5){
-            pocUpdateInterval--;
+        LogPrint(BCLog::NET, "[POC][DBG] pocChanges:%d:\n",pocChanges);
+        if(pocChanges > 1){
+            pocUpdateInterval-=pocChanges;
 
             if(pocUpdateInterval < MIN_POC_UPDATE_INTERVAL)
                 pocUpdateInterval = MIN_POC_UPDATE_INTERVAL;
 
-            LogPrint(BCLog::NET, "[POC] pocUpdateInterval changed:%d:\n",pocUpdateInterval);
-
-            freqChanges = 0;
+            LogPrint(BCLog::NET, "[POC] pocUpdateInterval decreased:%d:\n",pocUpdateInterval);
         }
-        else if(freqChanges < -5){
+        else if(pocChanges == 0){
             if(pocUpdateInterval < MAX_POC_UPDATE_INTERVAL)
                 pocUpdateInterval++;
 
-            LogPrint(BCLog::NET, "[POC] pocUpdateInterval changed:%d:\n",pocUpdateInterval);
-            freqChanges = 0;
+            LogPrint(BCLog::NET, "[POC] pocUpdateInterval increased:%d:\n",pocUpdateInterval);
         }
         pocChanges = 0;
     }
-
-
-
-    //TODO: name updatePeers; maintain 'history' of connection 
-    //(how long has a connection existed, does it appear/disappear?)
-    //TODO: update instead of replacing (change vector<CPeer> to vector<CPeer*>)
-    // void replacePeers(std::vector<CPeer> newvPeers){
-    //     int changes = 0;
-
-    //     LOCK(cs_peers);
-
-    //     //TODO: check if there are changes in the peer list. If so, update Freq
-    //     //This makes freq proportional to the number of connections
-    //     //For every change increase frequency of 1 sec (i.e. decrease nextUpdate by 1, MIN=1)
-    //     //If
-
-    //     //Keep old peer.fVerified state so the peers keeps verified while waiting for the new poc to complete
-    //     for (CPeer& newpeer : newvPeers){
-    //         CPeer *peer = findPeer(newpeer); //TODO: use == or change findPeer. a-b is different from b-a
-    //         if(peer)
-    //             newpeer.fVerified = peer->fVerified;
-    //         else changes++;
-    //     }
-
-    //     //Check deleted peers
-    //     for (CPeer& peer : vPeers){
-    //         bool found = false;
-    //         for (CPeer& newpeer : newvPeers){
-    //             if(newpeer == peer){
-    //                 found = true;
-    //                 break;
-    //             }
-    //         }
-    //         if(!found) changes++;
-    //     }
-
-    //     /* Update frequency */
-    //     if(changes>0){
-    //         updateFreq -= changes;
-
-    //         if(updateFreq < MIN_POC_UPDATE_INTERVAL)
-    //             updateFreq = MIN_POC_UPDATE_INTERVAL;
-    //     }
-    //     else if(updateFreq < MAX_POC_UPDATE_INTERVAL)
-    //             updateFreq++;
-        
-
-    //     vPeers.clear();
-    //     vPeers = newvPeers;
-    // }
 
     bool operator==(const CNetNode &node) const {
         return this->addr == node.addr;

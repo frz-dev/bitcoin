@@ -3531,7 +3531,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
 LogPrint(BCLog::NET, "[POC] \"VERIFIED\":");
         for (auto& gPeer : g_verified){
-            gPeer.fVerified[monitor].firstRound = true;
+            gPeer.fVerified[monitor].rounds++;
             bool v = false;
             for (const CVerified& vPeer : vVerified){
                 //if the peer is in the verified list, check it as verified
@@ -3557,16 +3557,7 @@ LogPrint(BCLog::NET, "[POC] \"VPEERS\":");
 
             //Do not disconnect if the peer is new
             int64_t time_in_seconds = GetTime();
-            if(time_in_seconds - ppeer->nTimeConnected < 5)
-                continue;
-
-            //Do not disconnect until all monitors have run at least a run since the peer is connected
-            bool skip = false;
-            for(auto& vmon : peer.fVerified)
-                if(!vmon.second.firstRound){
-                    skip=true; break;
-                }
-            if(skip)
+            if(time_in_seconds - ppeer->nTimeConnected < 30)
                 continue;
 
             //Calculate total reputation
@@ -3574,15 +3565,16 @@ LogPrint(BCLog::NET, "[POC] \"VPEERS\":");
 LogPrint(BCLog::NET, "%s(%s):[", getIPAddr(peer.addr), peer.fInbound?"in":"out");
             for(auto& vmon : peer.fVerified){
 LogPrint(BCLog::NET, "(%s:%d-%s-rep:%d), ", vmon.first, vmon.second.pocId,vmon.second.verified,vmon.second.reputation);
-                //tot_rep+=vmon.second.reputation;
-                if(vmon.second.verified) tot_rep++;
+                // Do not count unverified if less than 3 PeeV rounds passed
+                if(vmon.second.verified || vmon.second.rounds<=3) 
+                    tot_rep++;
             }
 LogPrint(BCLog::NET, "]\n");
 
-            //If reputation goes beyond threshold, let's disconnect
-            int threshold = (g_monitors.size()*MAX_M_REPUTATION / 2); //TODO +1
+            //If reputation goes below threshold, let's disconnect
+            int threshold = (g_monitors.size()*MAX_M_REPUTATION / 2)+1;
             LogPrint(BCLog::NET, "[POC] reputation of %s = %d (thr:%d)\n", peer.addr, tot_rep, threshold);
-            if(g_monitors.size()>1)
+            if(g_monitors.size()>2)
                 //if((!peer.fInbound && tot_rep < thresholdOut) || (peer.fInbound && tot_rep < thresholdIn)){
                 if(tot_rep < threshold){
                     LogPrint(BCLog::NET, "[POC] reputation=%d (thr:%d), disconnecting unverified %s\n", tot_rep, threshold, peer.addr);

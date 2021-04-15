@@ -168,9 +168,10 @@ void CNetMon::startPoCRound(CNode *pnode){
     CPoC *poc = pnetnode->poc;
     //Create or update PoC    
     if(poc)
-        poc->update();
-    else
-        poc=createPoC(pnetnode);
+        poc->fExpired = true;
+        //  ->update();
+    // else
+    poc=createPoC(pnetnode);
 
     //Send POC message
 //    sendPoC(pnode);
