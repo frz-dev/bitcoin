@@ -93,6 +93,7 @@ std::unique_ptr<BanMan> g_banman;
 std::unique_ptr<CNetMon> g_netmon; 
 std::vector<CVerified> g_verified; 
 std::vector<CNode *> g_monitors;
+std::vector<std::string> g_unverified;
 /**/
 
 #ifdef WIN32

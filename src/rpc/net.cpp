@@ -271,6 +271,31 @@ static UniValue getnetnodesinfo(const JSONRPCRequest& request)
     return ret;
 }
 
+static UniValue getunverified(const JSONRPCRequest& request)
+{
+    LogPrint(BCLog::NET, "[POC] getunverified\n");
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+            RPCHelpMan{"getunverified",
+                "\nReturns the list of unverified peers that have been disconnected, as a json array of objects.\n",
+                {},
+                RPCResult{ "[ip:port,...]" },
+                RPCExamples{
+                    HelpExampleCli("getunverified", "")
+                    + HelpExampleRpc("getunverified", "")
+                },
+            }.ToString());    
+
+    UniValue ret(UniValue::VARR);
+
+    for (auto addr : g_unverified) {
+        ret.push_back(addr);
+    }
+
+    return ret;
+}
+/**/
+
 static UniValue addnode(const JSONRPCRequest& request)
 {
     std::string strCommand;
@@ -808,6 +833,7 @@ static const CRPCCommand commands[] =
     { "network",            "setnetworkactive",       &setnetworkactive,       {"state"} },
     { "network",            "getnodeaddresses",       &getnodeaddresses,       {"count"} },
     { "network",            "getnetnodesinfo",        &getnetnodesinfo,        {} }, /*POC*/
+    { "network",            "getunverified",          &getunverified,          {} }, /*POC*/
 };
 // clang-format on
 

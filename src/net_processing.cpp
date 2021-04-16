@@ -3575,13 +3575,14 @@ LogPrint(BCLog::NET, "]\n");
             int threshold = (g_monitors.size()*MAX_M_REPUTATION / 2)+1;
             LogPrint(BCLog::NET, "[POC] reputation of %s = %d (thr:%d)\n", peer.addr, tot_rep, threshold);
             if(g_monitors.size()>2)
-                //if((!peer.fInbound && tot_rep < thresholdOut) || (peer.fInbound && tot_rep < thresholdIn)){
                 if(tot_rep < threshold){
                     LogPrint(BCLog::NET, "[POC] reputation=%d (thr:%d), disconnecting unverified %s\n", tot_rep, threshold, peer.addr);
-                    ppeer->fDisconnect = true;
+                    //Add to unverified list
+                    g_unverified.push_back(ppeer->addr.ToStringIP());
+
+                    ppeer->fDisconnect = true;                    
                 }
         }
-//LogPrint(BCLog::NET, "\n");
 
         return true;
     }

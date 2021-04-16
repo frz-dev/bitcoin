@@ -501,5 +501,6 @@ LogPrint(BCLog::NET, "[POC] DEBUG: addNode (%s)\n", addr);
 extern std::unique_ptr<CNetMon> g_netmon;
 extern std::vector<CVerified> g_verified;
 extern std::vector<CNode*> g_monitors;
+extern std::vector<std::string> g_unverified;
 
 #endif // BITCOIN_POC_H
