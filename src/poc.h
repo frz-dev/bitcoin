@@ -109,20 +109,6 @@ public:
         return (addr == peer.addr) && (fInbound == peer.fInbound);
     }
 
-    // bool isSymmetric(const CPeer &peer) {
-    //     return (addr == peer.node->addr) && (peer.node->addr == peer.addr) && (fInbound == !peer.fInbound);
-    // }
-
-    // CPeer getSymmetric(){
-    //     CPeer sym;
-
-    //     sym.addr = addrBind;
-    //     sym.addrBind = addr;
-    //     sym.fInbound = !fInbound;
-
-    //     return sym;
-    // }
-
     template <typename Stream>
     void Serialize(Stream& s) const {
         s << addr
