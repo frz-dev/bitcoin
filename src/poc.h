@@ -206,45 +206,6 @@ public:
     }
 };
 
-// /* CPoCAlert */
-// class CPoCAlert
-// {
-// public:
-//     std::string type;
-//     std::string addr1;
-//     std::string addr2;
-//     //int pocId;
-
-//     CPoCAlert(){
-//         type = "";
-//         addr1 = "";
-//         addr2 = "";
-//         //pocId = -1;
-//     };
-//     CPoCAlert(const std::string& t, const std::string& a1, const std::string& a2){
-//         type = t;
-//         addr1 = a1;
-//         addr2 = a2;
-//         //pocId = p;
-//     };
-    
-//     template <typename Stream>
-//     void Serialize(Stream& s) const {
-//         s << type
-//           << addr1
-//           << addr2;
-//           //<< pocId;
-//     }
-
-//     template <typename Stream>
-//     void Unserialize(Stream& s) {
-//         s >> type
-//           >> addr1
-//           >> addr2;
-// //          >> pocId;
-//     }
-// };
-
 /* CNetNode */
 class CNetNode
 {
