@@ -997,6 +997,22 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
         }
     }
 
+    /*POC*/
+    bool isUnverified = false;
+    for (auto u : g_unverified) {
+        if(addr.ToStringIP() == u){
+            isUnverified = true;
+            break;
+        }
+    }
+    if(isUnverified){
+        LogPrint(BCLog::NET, "[POC] connection from %s dropped (unverified)\n", addr.ToString());
+        CloseSocket(hSocket);
+        return;
+
+    }
+    /**/
+
     NodeId id = GetNewNodeId();
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
     CAddress addr_bind = GetBindAddress(hSocket);
@@ -1968,6 +1984,20 @@ void CConnman::ThreadOpenAddedConnections()
 // if successful, this moves the passed grant to the constructed node
 void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant *grantOutbound, const char *pszDest, bool fOneShot, bool fFeeler, bool manual_connection, bool block_relay_only)
 {
+    /*POC*/
+    bool isUnverified = false;
+    for (auto u : g_unverified) {
+        if(addrConnect.ToStringIP() == u){
+            isUnverified = true;
+            break;
+        }
+    }
+    if(isUnverified){
+        LogPrint(BCLog::NET, "[POC] not opining connection to %s (unverified)\n", addrConnect.ToStringIP());
+        return;
+    }
+    /**/
+
     //
     // Initiate outbound network connection
     //

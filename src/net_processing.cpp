@@ -3383,7 +3383,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     for (const CNodeStats& stats : vstats){
                         ppeer = g_connman->FindNode(stats.addrName);
 
-                        if(ppeer->fIsMalicious) {
+                        if(ppeer && ppeer->fIsMalicious) {
                             LogPrint(BCLog::NET, "[POC] MALICIOUS: Forwarding POC to %s\n", ppeer->addr.ToString());
                             g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POC, poc));
                         }
@@ -3402,7 +3402,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         ppeer = g_connman->FindNode(paddr);
 
                         // //If fully connected    
-                        if(!ppeer->fIsMonitor){ //g_connman->NodeFullyConnected(ppeer)
+                        if(ppeer && !ppeer->fIsMonitor){ //g_connman->NodeFullyConnected(ppeer)
                             //send POC
                             LogPrint(BCLog::NET, "[POC] Forwarding POC to %s\n", ppeer->addr.ToString());
                             g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POC, poc)); //? vRecv == msgMaker.Make(NetMsgType::POC, poc) ?
@@ -3432,7 +3432,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     for (const CNodeStats& stats : vstats){
                         ppeer = g_connman->FindNode(stats.addrName);
 
-                        if(ppeer->fIsMalicious) {
+                        if(ppeer && ppeer->fIsMalicious) {
                             LogPrint(BCLog::NET, "[POC] MALICIOUS: Forwarding POC to %s\n", ppeer->addr.ToString());
                             g_connman->PushMessage(ppeer, msgMaker.Make(NetMsgType::POC, poc));
                         }
@@ -3446,7 +3446,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     CNode *p = g_connman->FindNode(stats.addrName);
 
 //LogPrint(BCLog::NET, "[POC][DBG] Find monitor - checking peer: addr=%s\n", paddr);
-                    if(p->fIsMonitor && p->monAddr == poc.monitor){
+                    if(p && p->fIsMonitor && p->monAddr == poc.monitor){
                         ppeer = p;
                         break;
                     }
@@ -3488,7 +3488,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     // Are we are connected to the monitor?
                     for (const CNodeStats& stats : vstats){
                         CNode *p = g_connman->FindNode(stats.addrName);
-                        if(p->fIsMonitor && p->monAddr == poc.monitor){
+                        if(p && p->fIsMonitor && p->monAddr == poc.monitor){
                             ppeer = p;
                             break;
                         }

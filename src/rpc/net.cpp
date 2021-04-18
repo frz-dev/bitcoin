@@ -287,7 +287,6 @@ static UniValue getunverified(const JSONRPCRequest& request)
             }.ToString());    
 
     UniValue ret(UniValue::VARR);
-
     for (auto addr : g_unverified) {
         ret.push_back(addr);
     }
